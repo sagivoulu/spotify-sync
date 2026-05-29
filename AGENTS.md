@@ -63,7 +63,15 @@ Use [Conventional Commits](https://www.conventionalcommits.org/) style:
 - `fix: handle missing track metadata`
 - `chore: update dependencies`
 
-Never stage, commit, or push without explicit approval from the project owner.
+**On feature branches, commit autonomously** — no approval needed. Commit at logical checkpoints as you work (e.g. after each file group or subsystem is complete). When the ticket is fully implemented, verified, and tests pass:
+1. Commit any remaining changes.
+2. Push the branch.
+3. Open a GitHub PR (description: what changed, why, how to verify the acceptance criteria).
+4. Mark the Linear ticket **In Review**.
+
+Do all four steps automatically — don't wait to be asked.
+
+**On `main`/`master`, never commit or push without explicit approval.** That branch is protected.
 
 ### Security
 - Never hardcode credentials, tokens, or secrets. Use environment variables.

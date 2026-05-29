@@ -14,6 +14,10 @@ const VERSION = '0.1.0';
  * Core functions return data; this layer formats it for the terminal.
  * Long-running operations emit structured events — this layer subscribes and prints.
  * (See prd/future/ui-app.md — a future Electron UI will consume the same core.)
+ *
+ * Config flags: global options here correspond to config fields overridable at the
+ * CLI level. Commands access them via cmd.optsWithGlobals() and pass them to
+ * loadConfig({ cliFlags: mapCliFlags(opts) }) from src/config.
  */
 export function buildProgram(): Command {
   const program = new Command();
@@ -21,7 +25,9 @@ export function buildProgram(): Command {
   program
     .name('spotify-sync')
     .description('Sync your Spotify playlist to a local music library')
-    .version(VERSION);
+    .version(VERSION)
+    // Global config overrides — highest precedence (above env vars and config file).
+    .option('--library-path <path>', 'Override the local library directory (library.path)');
 
   // ---------------------------------------------------------------------------
   // auth — one-time OAuth flow to authenticate with Spotify
