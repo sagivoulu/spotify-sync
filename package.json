@@ -1,0 +1,28 @@
+{
+  "name": "spotify-sync",
+  "version": "0.1.0",
+  "description": "CLI tool to sync a Spotify playlist to a local music library for west coast swing DJs",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "bin": {
+    "spotify-sync": "./bin/spotify-sync"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "biome check src/",
+    "format": "biome format --write src/"
+  },
+  "dependencies": {
+    "commander": "^12.0.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.0",
+    "@types/node": "^25.9.1",
+    "typescript": "^5.5.0",
+    "vitest": "^4.1.7"
+  }
+}

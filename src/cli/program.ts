@@ -1,0 +1,86 @@
+import { Command } from 'commander';
+
+// Version is hardcoded for v1 skeleton; make dynamic in a follow-up.
+const VERSION = '0.1.0';
+
+/**
+ * Build and return the root commander program with all subcommands registered.
+ *
+ * Exported as a function (not a module-level singleton) so tests can instantiate
+ * a fresh program without global state leaking between test cases.
+ *
+ * Architecture note: this file is the thin CLI layer. It registers commands,
+ * parses arguments, and delegates to core modules. No business logic lives here.
+ * Core functions return data; this layer formats it for the terminal.
+ * Long-running operations emit structured events — this layer subscribes and prints.
+ * (See prd/future/ui-app.md — a future Electron UI will consume the same core.)
+ */
+export function buildProgram(): Command {
+  const program = new Command();
+
+  program
+    .name('spotify-sync')
+    .description('Sync your Spotify playlist to a local music library')
+    .version(VERSION);
+
+  // ---------------------------------------------------------------------------
+  // auth — one-time OAuth flow to authenticate with Spotify
+  // ---------------------------------------------------------------------------
+  program
+    .command('auth')
+    .description('Authenticate with Spotify (one-time OAuth flow)')
+    .option('--json', 'Output as JSON')
+    .action(() => {
+      console.log('auth: not yet implemented');
+    });
+
+  // ---------------------------------------------------------------------------
+  // sync — main loop: fetch playlist tracks and download new ones
+  // ---------------------------------------------------------------------------
+  program
+    .command('sync')
+    .description('Fetch playlist tracks and download any that are pending')
+    .option('--json', 'Output as JSON')
+    .action(() => {
+      console.log('sync: not yet implemented');
+    });
+
+  // ---------------------------------------------------------------------------
+  // status — show a summary of the local library state
+  // ---------------------------------------------------------------------------
+  program
+    .command('status')
+    .description('Show sync status (pending, failed, removed tracks)')
+    .option('--json', 'Output as JSON')
+    .action(() => {
+      console.log('status: not yet implemented');
+    });
+
+  // ---------------------------------------------------------------------------
+  // prune — review and optionally remove files for removed-from-playlist tracks
+  // ---------------------------------------------------------------------------
+  program
+    .command('prune')
+    .description('Review files for tracks removed from the playlist; optionally delete them')
+    .option('--dry-run', 'Show what would be removed without deleting anything')
+    .option('--json', 'Output as JSON')
+    .action(() => {
+      console.log('prune: not yet implemented');
+    });
+
+  // ---------------------------------------------------------------------------
+  // import — manually resolve a needs_manual track with a local file
+  // ---------------------------------------------------------------------------
+  program
+    .command('import')
+    .description('Import a local audio file as the resolved download for a specific track')
+    .argument('<file>', 'Path to the audio file to import')
+    .requiredOption('--for <track-id>', 'Spotify track ID this file resolves')
+    .option('--move', 'Move the file instead of copying it (default: copy)')
+    .option('--json', 'Output as JSON')
+    .action(() => {
+      console.log('import: not yet implemented');
+    });
+
+  return program;
+}

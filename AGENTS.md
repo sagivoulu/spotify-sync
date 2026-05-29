@@ -65,13 +65,66 @@ Never stage, commit, or push without explicit approval from the project owner.
 
 ## Architecture
 
-> **Status: TBD** — stack not yet decided. Update this section once the tech stack is chosen.
+### Committed stack
 
-Likely directions:
-- **Backend**: Python (rich Spotify API and yt-dlp ecosystem) or Node.js
-- **Frontend**: Web UI planned for later phases
+| Concern | Choice |
+|---|---|
+| Runtime | Node.js ≥ 20 |
+| Language | TypeScript 5.x, strict mode |
+| Module system | ESM (`"type": "module"` in package.json) |
+| TS module resolution | `"module": "NodeNext"` — **relative imports need `.js` extensions** |
+| CLI framework | `commander` v12+ |
+| Build | `tsc` (no bundler for v1; revisit if build time becomes an issue) |
+| Test runner | Vitest 2.x (native ESM + Vite-based resolution) |
+| Lint / format | Biome (single tool for both; `biome.json` at repo root) |
 
-When the stack is decided, document it here along with the module structure.
+> **NodeNext import convention:** all relative imports in `src/` use `.js` extensions, e.g.
+> `import { foo } from './util.js'`. TypeScript resolves to the `.ts` source at compile time;
+> Node.js runs the emitted `.js`. Vitest (via Vite) handles the resolution transparently.
+
+### Module layout
+
+```
+src/
+├── index.ts           # Thin entrypoint — calls buildProgram().parseAsync(process.argv)
+├── cli/               # CLI layer: command registration, arg parsing, output formatting
+├── spotify/           # Spotify API client; implements the generic Source interface
+├── backend/           # Pluggable DownloadBackend interface + yt-dlp implementation (v1)
+├── db/                # SQLite state via better-sqlite3; migrations; PRAGMA foreign_keys ON
+├── config/            # Config loading, XDG paths, env/flag/file precedence
+└── tagging/           # ID3 read/write
+
+bin/
+└── spotify-sync       # Executable shim — dynamic-imports dist/index.js; no logic here
+```
+
+### Architectural decisions to preserve
+
+**Core/CLI separation** (`prd/future/ui-app.md`): a future Electron UI sits on the same core.
+- Business logic lives in domain modules (`spotify/`, `backend/`, `db/`, `config/`, `tagging/`).
+- `src/cli/` is a thin formatting layer. It calls core functions, subscribes to their events, and prints output.
+- Core functions **return data, not strings**. Long-running ops **emit structured events** (EventEmitter / async iterator) — never `console.log` inside core.
+- `--json` output defines the data contract the future UI will consume; keep it complete.
+
+**Generic type names** (`prd/future/multi-source.md`): don't bake Spotify into core type names.
+- Use `Track`, `Playlist`, `Source` — never `SpotifyTrack`.
+- `src/spotify/` implements a `Source` interface defined in core.
+- CLI calls `source.listTracks()`, not `SpotifyClient.getPlaylist()` directly.
+
+**Library ID scoping** (`prd/future/multi-library.md`): core APIs accept a `libraryId` from day one.
+- Default value: `"default"`. v1 only ever passes this one value — no special-casing.
+- The single configured library registers as one `libraries` row on first run.
+
+**Source-agnostic DB schema** (`prd/01-download-sync.md`): identity is `(source, source_id)`.
+- v1 always uses `source='spotify'`. Future sources are additive rows, not migrations.
+- Always run `PRAGMA foreign_keys = ON` on every SQLite connection.
+
+### External binaries (checked at startup)
+
+- `yt-dlp` — download backend (v1 implementation)
+- `ffmpeg` — audio transcoding (required for format conversion)
+
+Both must be on `PATH`. `spotify-sync status` should print detected versions.
 
 ---
 
