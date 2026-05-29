@@ -322,3 +322,69 @@ describe('data_dir config field', () => {
     expect(config.data_dir).toBe('/from-env/data');
   });
 });
+
+// ---------------------------------------------------------------------------
+// db_path config field
+// ---------------------------------------------------------------------------
+
+describe('db_path config field', () => {
+  it('derives db_path from data_dir when db_path is not set', () => {
+    const config = loadConfig({
+      env: { ...VALID_REQUIRED_ENV, XDG_DATA_HOME: '/test/data' },
+      configPath: tmpConfigPath,
+    });
+    // data_dir = /test/data/spotify-sync → db.sqlite appended
+    expect(config.db_path).toBe('/test/data/spotify-sync/db.sqlite');
+  });
+
+  it('derives db_path from ~/.local/share/spotify-sync when XDG_DATA_HOME is unset', () => {
+    const config = loadConfig({
+      env: VALID_REQUIRED_ENV,
+      configPath: tmpConfigPath,
+    });
+    expect(config.db_path).toMatch(/\.local[/\\]share[/\\]spotify-sync[/\\]db\.sqlite$/);
+  });
+
+  it('uses an explicit db_path from the config file', () => {
+    writeTmpConfig({ ...VALID_REQUIRED, db_path: '/explicit/path/mydb.sqlite' });
+
+    const config = loadConfig({
+      env: {},
+      configPath: tmpConfigPath,
+    });
+
+    expect(config.db_path).toBe('/explicit/path/mydb.sqlite');
+  });
+
+  it('env var SPOTIFY_SYNC_DB_PATH overrides file db_path', () => {
+    writeTmpConfig({ ...VALID_REQUIRED, db_path: '/from-file/db.sqlite' });
+
+    const config = loadConfig({
+      env: { ...VALID_REQUIRED_ENV, SPOTIFY_SYNC_DB_PATH: '/from-env/db.sqlite' },
+      configPath: tmpConfigPath,
+    });
+
+    expect(config.db_path).toBe('/from-env/db.sqlite');
+  });
+
+  it('CLI flag dbPath overrides env var db_path', () => {
+    const config = loadConfig({
+      env: { ...VALID_REQUIRED_ENV, SPOTIFY_SYNC_DB_PATH: '/from-env/db.sqlite' },
+      configPath: tmpConfigPath,
+      cliFlags: { db_path: '/from-cli/db.sqlite' },
+    });
+
+    expect(config.db_path).toBe('/from-cli/db.sqlite');
+  });
+
+  it('an explicit db_path is independent of data_dir', () => {
+    // Changing data_dir should not affect an explicitly set db_path.
+    const config = loadConfig({
+      env: { ...VALID_REQUIRED_ENV, SPOTIFY_SYNC_DB_PATH: '/my/custom.sqlite' },
+      configPath: tmpConfigPath,
+      cliFlags: {},
+    });
+
+    expect(config.db_path).toBe('/my/custom.sqlite');
+  });
+});

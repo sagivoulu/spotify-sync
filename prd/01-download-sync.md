@@ -242,6 +242,7 @@ Schema (v1):
     "path": "/Users/sagiv/Music/wcs-library"
   },
   "data_dir": null,                    // null = use $XDG_DATA_HOME/spotify-sync/ (~/.local/share/spotify-sync/)
+  "db_path": null,                     // null = derive from data_dir as <data_dir>/db.sqlite; explicit path overrides
   "download": {
     "backend": "yt-dlp",
     "format": "mp3",
