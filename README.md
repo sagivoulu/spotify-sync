@@ -16,6 +16,43 @@ The gap this tool fills: **easily syncing a Spotify library to local storage**, 
 
 Early development. See `/prd/` for planned features.
 
+## Requirements
+
+- **Node.js ≥ 20** (`node --version` to check)
+- `yt-dlp` and `ffmpeg` on `PATH` (required for download commands; checked at startup)
+
+## Setup & build
+
+```bash
+npm install
+npm run build
+```
+
+## Run
+
+```bash
+# Using the compiled binary directly:
+./bin/spotify-sync --help
+
+# Or install globally (after npm link or npm install -g):
+spotify-sync --help
+```
+
+Available commands: `auth`, `sync`, `status`, `prune`, `import`
+
 ## Development
+
+```bash
+npm run build        # compile TypeScript → dist/
+npm run typecheck    # type-check without emitting
+npm test             # run tests with Vitest
+npm run lint         # lint with Biome
+npm run format       # auto-format with Biome
+```
+
+> **Import extension convention:** this project uses `"module": "NodeNext"` in `tsconfig.json`.
+> All relative imports in `src/` must use `.js` extensions even though the source files are `.ts`
+> (TypeScript resolves them correctly at compile time; Node.js runs the emitted `.js`).
+> Example: `import { buildProgram } from './cli/program.js'`
 
 This project is primarily vibe-coded with AI coding agents. See `AGENTS.md` for agent instructions and development guidelines.

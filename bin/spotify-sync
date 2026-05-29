@@ -1,0 +1,7 @@
+#!/usr/bin/env node
+// Thin executable shim. All logic lives in src/ and is compiled to dist/.
+// Dynamic import works in both CJS and ESM contexts (Node.js 12+).
+import('../dist/index.js').catch((err) => {
+  process.stderr.write(String(err) + '\n');
+  process.exit(1);
+});
