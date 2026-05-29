@@ -27,7 +27,8 @@ export function buildProgram(): Command {
     .description('Sync your Spotify playlist to a local music library')
     .version(VERSION)
     // Global config overrides — highest precedence (above env vars and config file).
-    .option('--library-path <path>', 'Override the local library directory (library.path)');
+    .option('--library-path <path>', 'Override the local library directory (library.path)')
+    .option('--db-path <path>', 'Override the SQLite DB file location (db_path)');
 
   // ---------------------------------------------------------------------------
   // auth — one-time OAuth flow to authenticate with Spotify

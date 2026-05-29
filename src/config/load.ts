@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { ConfigError } from './errors.js';
-import { configFilePath, defaultDataDir } from './paths.js';
+import { configFilePath, defaultDataDir, defaultDbPath } from './paths.js';
 import { CONFIG_FIELD_PATHS, configSchema, fieldPathToEnvVar } from './schema.js';
 import type { Config, ConfigInput } from './schema.js';
 
@@ -26,6 +26,7 @@ export interface LoadConfigOptions {
 /** Commander camelCase keys for the CLI flags we expose on the root program. */
 export interface CliFlags {
   libraryPath?: string;
+  dbPath?: string;
 }
 
 /**
@@ -36,6 +37,9 @@ export function mapCliFlags(flags: CliFlags): ConfigInput {
   const partial: ConfigInput = {};
   if (flags.libraryPath !== undefined) {
     partial.library = { path: flags.libraryPath };
+  }
+  if (flags.dbPath !== undefined) {
+    partial.db_path = flags.dbPath;
   }
   return partial;
 }
@@ -149,5 +153,9 @@ export function loadConfig(options?: LoadConfigOptions): Config {
   // --- Resolve data_dir ---
   const data_dir = result.data.data_dir || defaultDataDir(env);
 
-  return { ...result.data, data_dir };
+  // --- Resolve db_path ---
+  // Explicit db_path (CLI flag > env var > config file) wins; else derive from data_dir.
+  const db_path = result.data.db_path || defaultDbPath(data_dir);
+
+  return { ...result.data, data_dir, db_path };
 }

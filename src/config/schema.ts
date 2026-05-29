@@ -32,6 +32,9 @@ export const configSchema = z.object({
   ),
   // null = not set; loadConfig resolves to the XDG data dir before returning.
   data_dir: z.string().nullable().default(null),
+  // null = not set; loadConfig derives <data_dir>/db.sqlite before returning.
+  // An explicit path takes precedence over the data_dir-derived default.
+  db_path: z.string().nullable().default(null),
   download: pre(
     z.object({
       backend: z.string().default('yt-dlp'),
@@ -49,11 +52,14 @@ export const configSchema = z.object({
   ),
 });
 
-// ConfigRaw is what zod emits (data_dir still nullable).
+// ConfigRaw is what zod emits (data_dir and db_path still nullable).
 type ConfigRaw = z.infer<typeof configSchema>;
 
-// Config is the resolved output from loadConfig — data_dir is always a string.
-export type Config = Omit<ConfigRaw, 'data_dir'> & { data_dir: string };
+// Config is the resolved output from loadConfig — data_dir and db_path are always strings.
+export type Config = Omit<ConfigRaw, 'data_dir' | 'db_path'> & {
+  data_dir: string;
+  db_path: string;
+};
 
 // ConfigInput is the partial shape accepted by each merge layer. All fields
 // are optional because any given layer may only supply a subset. Numeric fields
@@ -69,6 +75,7 @@ export type ConfigInput = {
     path?: string;
   };
   data_dir?: string | null;
+  db_path?: string | null;
   download?: {
     backend?: string;
     format?: string;
@@ -95,6 +102,7 @@ export const CONFIG_FIELD_PATHS = [
   'library.id',
   'library.path',
   'data_dir',
+  'db_path',
   'download.backend',
   'download.format',
   'download.bitrate_kbps',
