@@ -1,4 +1,5 @@
 import { Command } from 'commander';
+import { runAuthCommand } from './auth.js';
 
 // Version is hardcoded for v1 skeleton; make dynamic in a follow-up.
 const VERSION = '0.1.0';
@@ -36,9 +37,21 @@ export function buildProgram(): Command {
   program
     .command('auth')
     .description('Authenticate with Spotify (one-time OAuth flow)')
+    .option('--port <number>', 'Localhost port for the OAuth callback server', '8888')
     .option('--json', 'Output as JSON')
-    .action(() => {
-      console.log('auth: not yet implemented');
+    .action(async function (this: Command) {
+      // optsWithGlobals() merges local + global opts.
+      const opts = this.optsWithGlobals<{
+        port: string;
+        json: boolean;
+        libraryPath?: string;
+        dbPath?: string;
+      }>();
+      await runAuthCommand({
+        json: opts.json ?? false,
+        port: Number(opts.port),
+        globals: { libraryPath: opts.libraryPath, dbPath: opts.dbPath },
+      });
     });
 
   // ---------------------------------------------------------------------------
