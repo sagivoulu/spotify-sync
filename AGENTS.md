@@ -28,9 +28,10 @@ If you discover that an existing instruction is wrong or outdated, update it. Do
 
 ## Before You Start Any Task
 
-1. **Read the relevant PRD** in `/prd/` before implementing a feature. If no PRD exists for the feature, flag it — don't implement against a blank spec.
-2. **Explore the codebase first.** Understand existing patterns, conventions, and structure before writing a line.
-3. **Raise blockers upfront.** Missing access, unclear requirements, or mismatched assumptions should surface before implementation starts, not halfway through.
+1. **Read the Linear ticket.** Fetch the issue (e.g. `WES-5`) to get the full description, acceptance criteria, and out-of-scope list. Also read its milestone and project for surrounding context — what phase is this, what came before, what comes after.
+2. **Read the relevant PRD** in `/prd/` before implementing a feature. Start with `prd/00-product-overview.md`, then the feature PRD. If no PRD exists for the feature, flag it — don't implement against a blank spec.
+3. **Explore the codebase first.** Understand existing patterns, conventions, and structure before writing a line.
+4. **Raise blockers upfront.** Missing access, unclear requirements, or mismatched assumptions should surface before implementation starts, not halfway through.
 
 ---
 
@@ -47,6 +48,14 @@ All code must be tested. There are no exceptions.
 - Follow existing patterns in the codebase. Don't introduce new conventions without a reason.
 - Keep modules focused. If a file is doing too many things, that's a flag — raise it, don't silently refactor.
 - No unnecessary abstractions. Solve the problem in front of you.
+
+### Ticket lifecycle
+
+Every piece of work maps to a Linear ticket. Follow this flow without exception:
+
+1. **Starting work** → mark the ticket **In Progress** in Linear before writing any code.
+2. **Finishing work** → commit all changes, push the branch, open a GitHub PR with a description (what changed, why, how to test the acceptance criteria), then mark the ticket **In Review** in Linear.
+3. **Never mark a ticket Done yourself** — that's the project owner's call after reviewing the PR.
 
 ### Commits
 Use [Conventional Commits](https://www.conventionalcommits.org/) style:
@@ -75,7 +84,7 @@ Never stage, commit, or push without explicit approval from the project owner.
 | TS module resolution | `"module": "NodeNext"` — **relative imports need `.js` extensions** |
 | CLI framework | `commander` v12+ |
 | Build | `tsc` (no bundler for v1; revisit if build time becomes an issue) |
-| Test runner | Vitest 2.x (native ESM + Vite-based resolution) |
+| Test runner | Vitest 4.x (native ESM + Vite-based resolution) |
 | Lint / format | Biome (single tool for both; `biome.json` at repo root) |
 
 > **NodeNext import convention:** all relative imports in `src/` use `.js` extensions, e.g.
