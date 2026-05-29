@@ -1,0 +1,3 @@
+{
+  "setup": ["nvm use && npm run setup"]
+}

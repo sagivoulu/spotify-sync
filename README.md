@@ -18,8 +18,25 @@ Early development. See `/prd/` for planned features.
 
 ## Requirements
 
-- **Node.js ≥ 20** (`node --version` to check)
+- **Node.js 24** (`node --version` to check; `.nvmrc` pins the version)
 - `yt-dlp` and `ffmpeg` on `PATH` (required for download commands; checked at startup)
+
+## New workspace setup
+
+A fresh superset worktree (or plain clone) has no `node_modules/` or `dist/` — both are
+gitignored. Run these once before using the CLI:
+
+```bash
+nvm use          # activate Node 24 from .nvmrc
+npm run setup    # npm install && npm run build
+./bin/spotify-sync --help   # verify it works
+```
+
+> **Superset users:** setup runs automatically when superset creates the workspace
+> (via `.superset/config.json`). You don't need to run this manually.
+
+**Placeholder — Spotify credentials (coming soon):** once the auth feature lands, a config step
+will be added here (see the auth ticket).
 
 ## Setup & build
 

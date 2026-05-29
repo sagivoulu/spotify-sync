@@ -72,13 +72,21 @@ Never stage, commit, or push without explicit approval from the project owner.
 
 ---
 
+## Workspace Setup (superset)
+
+New superset workspaces are initialized automatically via `.superset/config.json`, which runs
+`nvm use && npm run setup` (`npm install && npm run build`) on workspace creation. The workspace
+is ready to use immediately after opening — no manual setup step needed.
+
+---
+
 ## Architecture
 
 ### Committed stack
 
 | Concern | Choice |
 |---|---|
-| Runtime | Node.js ≥ 20 |
+| Runtime | Node.js 24 |
 | Language | TypeScript 5.x, strict mode |
 | Module system | ESM (`"type": "module"` in package.json) |
 | TS module resolution | `"module": "NodeNext"` — **relative imports need `.js` extensions** |
