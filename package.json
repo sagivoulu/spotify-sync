@@ -10,6 +10,7 @@
     "spotify-sync": "./bin/spotify-sync"
   },
   "scripts": {
+    "setup": "npm install && npm run build",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
