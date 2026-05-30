@@ -410,6 +410,142 @@ describe('fetchPlaylistTracks — proactive token refresh', () => {
 });
 
 // ---------------------------------------------------------------------------
+// fetchPlaylistSummary — playlist metadata + sample tracks
+// ---------------------------------------------------------------------------
+
+/** Minimal playlist metadata response for GET /playlists/{id}?fields=name,tracks(total) */
+function makePlaylistMetadata(name: string, total: number): object {
+  return { name, tracks: { total } };
+}
+
+describe('fetchPlaylistSummary — basic behaviour', () => {
+  it('returns name, trackCount, and sample tracks', async () => {
+    const tracks = [
+      makeTrackItem({ id: 't1', name: 'Song One', artists: ['Alice'] }),
+      makeTrackItem({ id: 't2', name: 'Song Two', artists: ['Bob', 'Carol'] }),
+    ];
+    const metadata = makePlaylistMetadata('My Playlist', 42);
+    const itemsPage = makePage(tracks);
+
+    const fakeFetch = async (url: string | URL | Request): Promise<Response> => {
+      const urlStr = String(url);
+      // Metadata call (no /items in the path)
+      if (urlStr.includes('/items')) {
+        return new Response(JSON.stringify(itemsPage), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(JSON.stringify(metadata), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    };
+
+    const client = createSpotifyClient({ clientId: 'cid', token: VALID_TOKEN, fetchFn: fakeFetch });
+    const summary = await client.fetchPlaylistSummary('playlist-id', 2);
+
+    expect(summary.name).toBe('My Playlist');
+    expect(summary.trackCount).toBe(42);
+    expect(summary.tracks).toHaveLength(2);
+    expect(summary.tracks[0].id).toBe('t1');
+    expect(summary.tracks[0].title).toBe('Song One');
+    expect(summary.tracks[0].artists).toEqual(['Alice']);
+    expect(summary.tracks[1].id).toBe('t2');
+    expect(summary.tracks[1].artists).toEqual(['Bob', 'Carol']);
+  });
+
+  it('truncates sample to sampleSize even if the page has more', async () => {
+    const tracks = [
+      makeTrackItem({ id: 't1' }),
+      makeTrackItem({ id: 't2' }),
+      makeTrackItem({ id: 't3' }),
+    ];
+    const metadata = makePlaylistMetadata('Big Playlist', 100);
+    const itemsPage = makePage(tracks);
+
+    const fakeFetch = async (url: string | URL | Request): Promise<Response> => {
+      const urlStr = String(url);
+      if (urlStr.includes('/items')) {
+        return new Response(JSON.stringify(itemsPage), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(JSON.stringify(metadata), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    };
+
+    const client = createSpotifyClient({ clientId: 'cid', token: VALID_TOKEN, fetchFn: fakeFetch });
+    const summary = await client.fetchPlaylistSummary('pid', 2);
+
+    expect(summary.tracks).toHaveLength(2);
+    expect(summary.tracks.map((t) => t.id)).toEqual(['t1', 't2']);
+  });
+
+  it('skips local and null items in the sample', async () => {
+    const items = [
+      makeTrackItem({ id: 'local', isLocal: true }),
+      makeTrackItem({ id: 'removed', trackNull: true }),
+      makeTrackItem({ id: 'real', name: 'Real Song' }),
+    ];
+    const metadata = makePlaylistMetadata('Playlist', 10);
+    const itemsPage = makePage(items);
+
+    const fakeFetch = async (url: string | URL | Request): Promise<Response> => {
+      const urlStr = String(url);
+      if (urlStr.includes('/items')) {
+        return new Response(JSON.stringify(itemsPage), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(JSON.stringify(metadata), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    };
+
+    const client = createSpotifyClient({ clientId: 'cid', token: VALID_TOKEN, fetchFn: fakeFetch });
+    const summary = await client.fetchPlaylistSummary('pid', 5);
+
+    expect(summary.tracks).toHaveLength(1);
+    expect(summary.tracks[0].id).toBe('real');
+  });
+
+  it('makes the metadata call with the fields query parameter', async () => {
+    const capturedUrls: string[] = [];
+    const metadata = makePlaylistMetadata('Test', 5);
+    const itemsPage = makePage([makeTrackItem()]);
+
+    const fakeFetch = async (url: string | URL | Request): Promise<Response> => {
+      const urlStr = String(url);
+      capturedUrls.push(urlStr);
+      if (urlStr.includes('/items')) {
+        return new Response(JSON.stringify(itemsPage), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(JSON.stringify(metadata), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    };
+
+    const client = createSpotifyClient({ clientId: 'cid', token: VALID_TOKEN, fetchFn: fakeFetch });
+    await client.fetchPlaylistSummary('pid', 2);
+
+    const metadataUrl = capturedUrls.find((u) => !u.includes('/items'));
+    expect(metadataUrl).toBeDefined();
+    expect(metadataUrl).toContain('fields=');
+    expect(metadataUrl).toContain('tracks');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Token refresh — 401-triggered
 // ---------------------------------------------------------------------------
 

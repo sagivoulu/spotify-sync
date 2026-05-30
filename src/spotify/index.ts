@@ -5,8 +5,9 @@
 // directly. The SDK, raw fetch helpers, and page-mapping internals stay hidden.
 // ---------------------------------------------------------------------------
 
-export type { SpotifyClient, SpotifyTrack } from './client.js';
+export type { PlaylistSummary, SpotifyClient, SpotifyTrack } from './client.js';
 export { createSpotifyClient } from './client.js';
+export { parsePlaylistId } from './playlist-url.js';
 
 import { createSpotifyClient } from './client.js';
 import type { SpotifyClient } from './client.js';

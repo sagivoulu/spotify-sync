@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import { runAuthCommand } from './auth.js';
+import { runDoctorCommand } from './doctor.js';
 
 // Version is hardcoded for v1 skeleton; make dynamic in a follow-up.
 const VERSION = '0.1.0';
@@ -50,6 +51,25 @@ export function buildProgram(): Command {
       await runAuthCommand({
         json: opts.json ?? false,
         port: Number(opts.port),
+        globals: { libraryPath: opts.libraryPath, dbPath: opts.dbPath },
+      });
+    });
+
+  // ---------------------------------------------------------------------------
+  // doctor — setup health check
+  // ---------------------------------------------------------------------------
+  program
+    .command('doctor')
+    .description('Check that spotify-sync is correctly set up (config, auth, Spotify connectivity)')
+    .option('--json', 'Output as JSON')
+    .action(async function (this: Command) {
+      const opts = this.optsWithGlobals<{
+        json: boolean;
+        libraryPath?: string;
+        dbPath?: string;
+      }>();
+      await runDoctorCommand({
+        json: opts.json ?? false,
         globals: { libraryPath: opts.libraryPath, dbPath: opts.dbPath },
       });
     });
