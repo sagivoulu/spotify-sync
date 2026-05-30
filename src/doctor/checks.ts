@@ -10,6 +10,8 @@
 // Unexpected I/O errors (permissions, filesystem corruption, etc.) propagate.
 // ---------------------------------------------------------------------------
 
+import { MINIMUM_YTDLP_VERSION, getFfmpegVersion, getYtDlpVersion } from '../backend/yt-dlp.js';
+import type { SubprocessRunner } from '../backend/yt-dlp.js';
 import { ConfigError, loadConfig } from '../config/index.js';
 import type { Config, ConfigInput } from '../config/index.js';
 import type { SpotifyClient } from '../spotify/index.js';
@@ -114,6 +116,104 @@ export interface CheckSpotifyOptions {
   /** Number of sample tracks to fetch. Default: 2. */
   sampleSize?: number;
 }
+
+// ---------------------------------------------------------------------------
+// Binary checks — yt-dlp and ffmpeg
+// ---------------------------------------------------------------------------
+
+export interface CheckBinaryOptions {
+  /** Injectable subprocess runner — defaults to the real execFile-based runner. */
+  runner?: SubprocessRunner;
+}
+
+const YTDLP_INSTALL_INSTRUCTIONS = [
+  'not found on PATH',
+  'Install:  brew install yt-dlp              (macOS / Homebrew)',
+  '          pipx install yt-dlp              (cross-platform, requires pipx)',
+  '          pip install yt-dlp               (cross-platform, requires pip)',
+  '          https://github.com/yt-dlp/yt-dlp#installation',
+].join('\n');
+
+const FFMPEG_INSTALL_INSTRUCTIONS = [
+  'not found on PATH',
+  'Install:  brew install ffmpeg              (macOS / Homebrew)',
+  '          sudo apt install ffmpeg          (Debian / Ubuntu)',
+  '          https://ffmpeg.org/download.html',
+].join('\n');
+
+const YTDLP_OUTDATED_INSTRUCTIONS = (version: string) =>
+  [
+    `${version} — too old (minimum tested: ${MINIMUM_YTDLP_VERSION})`,
+    'Older versions are blocked by YouTube bot detection and will fail silently.',
+    'Upgrade:  brew upgrade yt-dlp             (macOS / Homebrew)',
+    '          pipx upgrade yt-dlp              (cross-platform, requires pipx)',
+    '          pip install -U yt-dlp            (cross-platform, requires pip)',
+    '          https://github.com/yt-dlp/yt-dlp#installation',
+  ].join('\n');
+
+/**
+ * Verify that yt-dlp is present on PATH, report its version, and confirm it
+ * meets the minimum tested version.
+ *
+ * Returns ok=false with upgrade instructions when missing or outdated.
+ * An outdated yt-dlp is treated the same as missing because older versions
+ * hit YouTube's bot detection and fail silently during downloads.
+ * Never throws — all errors are captured as ok=false CheckResult.
+ */
+export async function checkYtDlp(opts?: CheckBinaryOptions): Promise<CheckResult> {
+  const versionResult = await getYtDlpVersion(opts?.runner);
+
+  if (!versionResult.available) {
+    return { name: 'yt-dlp', ok: false, detail: YTDLP_INSTALL_INSTRUCTIONS };
+  }
+
+  const { version } = versionResult;
+
+  // yt-dlp uses YYYY.MM.DD versioning with zero-padded month/day,
+  // so lexicographic comparison is equivalent to chronological order.
+  if (version < MINIMUM_YTDLP_VERSION) {
+    return {
+      name: 'yt-dlp',
+      ok: false,
+      detail: YTDLP_OUTDATED_INSTRUCTIONS(version),
+      data: { version, minimumTestedVersion: MINIMUM_YTDLP_VERSION, versionTooOld: true },
+    };
+  }
+
+  return {
+    name: 'yt-dlp',
+    ok: true,
+    detail: version,
+    data: { version },
+  };
+}
+
+/**
+ * Verify that ffmpeg is present on PATH and report its version.
+ *
+ * Returns ok=false with platform-aware install instructions when missing.
+ * Never throws — all errors are captured as ok=false CheckResult.
+ */
+export async function checkFfmpeg(opts?: CheckBinaryOptions): Promise<CheckResult> {
+  const versionResult = await getFfmpegVersion(opts?.runner);
+  if (versionResult.available) {
+    return {
+      name: 'ffmpeg',
+      ok: true,
+      detail: versionResult.version,
+      data: { version: versionResult.version },
+    };
+  }
+  return {
+    name: 'ffmpeg',
+    ok: false,
+    detail: FFMPEG_INSTALL_INSTRUCTIONS,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Spotify connectivity check
+// ---------------------------------------------------------------------------
 
 /**
  * Verify live Spotify connectivity:

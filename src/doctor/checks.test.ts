@@ -2,9 +2,11 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { MINIMUM_YTDLP_VERSION } from '../backend/yt-dlp.js';
+import type { SubprocessRunner } from '../backend/yt-dlp.js';
 import type { SpotifyClient, SpotifyTrack } from '../spotify/index.js';
 import type { StoredToken } from '../spotify/token-store.js';
-import { checkAuth, checkConfig, checkSpotify } from './checks.js';
+import { checkAuth, checkConfig, checkFfmpeg, checkSpotify, checkYtDlp } from './checks.js';
 
 // ---------------------------------------------------------------------------
 // checkConfig
@@ -297,5 +299,111 @@ describe('checkSpotify', () => {
     });
 
     expect(capturedSampleSize).toBe(3);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// checkYtDlp
+// ---------------------------------------------------------------------------
+
+/** Build a SubprocessRunner that returns a fixed result for any call. */
+function makeRunner(
+  result: { stdout: string; stderr: string; code: number } | 'enoent',
+): SubprocessRunner {
+  return async (_binary, _args) => {
+    if (result === 'enoent') {
+      throw Object.assign(new Error('spawn yt-dlp ENOENT'), { code: 'ENOENT' });
+    }
+    return result;
+  };
+}
+
+describe('checkYtDlp', () => {
+  // A version string known to be above MINIMUM_YTDLP_VERSION
+  const FRESH_VERSION = '2026.03.17';
+  // A version string known to be below MINIMUM_YTDLP_VERSION
+  const STALE_VERSION = '2025.08.27';
+
+  it('returns ok=true with version in detail and data.version when yt-dlp is fresh enough', async () => {
+    const result = await checkYtDlp({
+      runner: makeRunner({ stdout: `${FRESH_VERSION}\n`, stderr: '', code: 0 }),
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.name).toBe('yt-dlp');
+    expect(result.detail).toBe(FRESH_VERSION);
+    expect(result.data?.version).toBe(FRESH_VERSION);
+  });
+
+  it('returns ok=false with upgrade instructions when yt-dlp is below minimum tested version', async () => {
+    const result = await checkYtDlp({
+      runner: makeRunner({ stdout: `${STALE_VERSION}\n`, stderr: '', code: 0 }),
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.name).toBe('yt-dlp');
+    expect(result.detail).toContain(STALE_VERSION);
+    expect(result.detail).toContain(MINIMUM_YTDLP_VERSION);
+    expect(result.detail).toMatch(/too old/i);
+    expect(result.detail).toMatch(/brew upgrade yt-dlp/);
+    expect(result.data?.versionTooOld).toBe(true);
+    expect(result.data?.minimumTestedVersion).toBe(MINIMUM_YTDLP_VERSION);
+  });
+
+  it('version exactly at minimum passes', async () => {
+    const result = await checkYtDlp({
+      runner: makeRunner({ stdout: `${MINIMUM_YTDLP_VERSION}\n`, stderr: '', code: 0 }),
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  it('returns ok=false with install instructions when yt-dlp is not found (ENOENT)', async () => {
+    const result = await checkYtDlp({ runner: makeRunner('enoent') });
+
+    expect(result.ok).toBe(false);
+    expect(result.name).toBe('yt-dlp');
+    expect(result.detail).toMatch(/not found on PATH/i);
+    expect(result.detail).toMatch(/brew install yt-dlp/);
+    expect(result.detail).toMatch(/pipx install yt-dlp/);
+    expect(result.detail).toMatch(/github\.com\/yt-dlp/);
+  });
+
+  it('returns ok=false when yt-dlp exits non-zero', async () => {
+    const result = await checkYtDlp({
+      runner: makeRunner({ stdout: '', stderr: 'error', code: 1 }),
+    });
+
+    expect(result.ok).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// checkFfmpeg
+// ---------------------------------------------------------------------------
+
+describe('checkFfmpeg', () => {
+  it('returns ok=true with version in detail and data.version when ffmpeg is found', async () => {
+    const stdout =
+      'ffmpeg version 6.0 Copyright (c) 2000-2023 the FFmpeg developers\n' +
+      '  built with Apple clang version 14.0.3\n';
+
+    const result = await checkFfmpeg({
+      runner: makeRunner({ stdout, stderr: '', code: 0 }),
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.name).toBe('ffmpeg');
+    expect(result.detail).toBe('6.0');
+    expect(result.data?.version).toBe('6.0');
+  });
+
+  it('returns ok=false with install instructions when ffmpeg is not found (ENOENT)', async () => {
+    const result = await checkFfmpeg({ runner: makeRunner('enoent') });
+
+    expect(result.ok).toBe(false);
+    expect(result.name).toBe('ffmpeg');
+    expect(result.detail).toMatch(/not found on PATH/i);
+    expect(result.detail).toMatch(/brew install ffmpeg/);
+    expect(result.detail).toMatch(/ffmpeg\.org/);
   });
 });
