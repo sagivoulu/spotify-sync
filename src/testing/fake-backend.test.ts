@@ -6,8 +6,8 @@
 // ---------------------------------------------------------------------------
 
 import { describe, expect, it } from 'vitest';
-import { createFakeBackend } from './fake.js';
-import { BackendError } from './types.js';
+import { BackendError } from '../backend/types.js';
+import { createFakeBackend } from './fake-backend.js';
 
 describe('createFakeBackend', () => {
   it('has name "fake"', () => {

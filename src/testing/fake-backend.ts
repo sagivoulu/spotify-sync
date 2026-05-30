@@ -1,18 +1,19 @@
 // ---------------------------------------------------------------------------
-// FakeBackend — a canned DownloadBackend for integration tests.
+// FakeBackend — a canned DownloadBackend for tests.
 //
-// Used by the sync pipeline tests and any test that needs a DownloadBackend
-// without invoking a real binary. Not exported from src/backend/index.ts
-// production path — import directly from src/backend/fake.js in tests.
+// Lives in src/testing/ because it is shared across test files in different
+// modules (unit tests, future pipeline integration tests, e2e tests, etc.).
+// Never imported by production code.
 // ---------------------------------------------------------------------------
 
+import { BackendError } from '../backend/types.js';
 import type {
   AudioFormat,
   Candidate,
   DownloadBackend,
   DownloadResult,
   SearchQuery,
-} from './types.js';
+} from '../backend/types.js';
 
 /** Configurable options for the fake backend. */
 export interface FakeBackendOpts {
@@ -56,7 +57,6 @@ export function createFakeBackend(opts: FakeBackendOpts = {}): DownloadBackend {
 
     async search(_query: SearchQuery): Promise<Candidate[]> {
       if (searchError !== undefined) {
-        const { BackendError } = await import('./types.js');
         throw new BackendError(searchError, 'fake stderr', 1);
       }
       return searchResults ?? [DEFAULT_CANDIDATE];
