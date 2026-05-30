@@ -48,7 +48,7 @@ export async function runSyncCommand(options: RunSyncCommandOptions): Promise<vo
       case 'run-start':
         process.stdout.write(`Library: ${event.libraryPath}\n`);
         process.stdout.write(
-          `Syncing: ${event.pendingCount} pending, ${event.addedCount} new, ${event.removedMarkedCount} removed\n`,
+          `Syncing: ${event.pendingCount} pending, ${event.addedCount} new, ${event.removedMarkedCount} removed (concurrency: ${event.concurrency})\n`,
         );
         break;
 

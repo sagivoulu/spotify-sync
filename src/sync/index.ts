@@ -260,6 +260,7 @@ export async function runSync(opts: RunSyncOptions = {}): Promise<SyncResult> {
     type: 'run-start',
     runId: syncRunId,
     libraryPath: config.library.path,
+    concurrency: config.download.concurrency,
     pendingCount: pendingTracks.length,
     addedCount: added,
     removedMarkedCount: removedMarked,

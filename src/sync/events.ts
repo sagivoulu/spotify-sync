@@ -13,6 +13,7 @@ export interface RunStartEvent {
   type: 'run-start';
   runId: number;
   libraryPath: string;
+  concurrency: number;
   pendingCount: number;
   addedCount: number;
   removedMarkedCount: number;
