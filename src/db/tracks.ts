@@ -20,6 +20,14 @@ export interface TrackRow {
   attempts: number;
 }
 
+export interface ImportTargetRow {
+  id: number;
+  source_id: string;
+  artist: string;
+  title: string;
+  file_path: string | null;
+}
+
 // ---------------------------------------------------------------------------
 // upsertTrack
 // ---------------------------------------------------------------------------
@@ -233,6 +241,36 @@ export function listDownloadedTracks(
     `,
     )
     .all(libraryId, source) as DownloadedTrackRow[];
+}
+
+// ---------------------------------------------------------------------------
+// getImportTarget
+// ---------------------------------------------------------------------------
+
+/**
+ * Return the DB row targeted by `spotify-sync import`.
+ *
+ * Import intentionally works for any existing track status: it is the manual
+ * recovery path for failed/needs_manual rows and the explicit replacement path
+ * for already-downloaded rows.
+ */
+export function getImportTarget(
+  db: Database.Database,
+  params: { libraryId: string; source: string; sourceId: string },
+): ImportTargetRow | null {
+  const { libraryId, source, sourceId } = params;
+  const row = db
+    .prepare(
+      `
+      SELECT id, source_id, artist, title, file_path
+      FROM tracks
+      WHERE library_id = ? AND source = ? AND source_id = ?
+      LIMIT 1
+    `,
+    )
+    .get(libraryId, source, sourceId) as ImportTargetRow | undefined;
+
+  return row ?? null;
 }
 
 // ---------------------------------------------------------------------------

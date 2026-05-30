@@ -87,7 +87,7 @@ const PAGE_SIZE = 100;
 // Public types
 // ---------------------------------------------------------------------------
 
-export interface SpotifyTrack {
+export interface SpotifyTrackMetadata {
   /** Spotify track ID. */
   id: string;
   /** Track name. */
@@ -110,6 +110,9 @@ export interface SpotifyTrack {
   trackNumber?: number;
   /** Track duration in milliseconds. */
   durationMs: number;
+}
+
+export interface SpotifyTrack extends SpotifyTrackMetadata {
   /** ISO 8601 timestamp when the track was added to the playlist. */
   addedAt: string;
 }
@@ -131,6 +134,13 @@ export interface PlaylistSummary {
 }
 
 export interface SpotifyClient {
+  /**
+   * Fetch one Spotify track by ID, returning the metadata needed for tagging.
+   *
+   * @param trackId  Spotify track ID.
+   */
+  fetchTrack(trackId: string): Promise<SpotifyTrackMetadata>;
+
   /**
    * Fetch all tracks in a Spotify playlist, handling pagination and token
    * refresh transparently.
@@ -184,11 +194,11 @@ export interface SpotifyClientDeps {
  * Map a raw Spotify playlist item to a SpotifyTrack, or null if the item
  * should be skipped (local file, null/removed track, or non-track type).
  */
-function mapPlaylistItem(item: SpotifyApiPlaylistItem): SpotifyTrack | null {
-  if (item.is_local || item.item == null || item.item.type !== 'track') {
+function mapTrackItem(track: SpotifyApiTrackItem): SpotifyTrackMetadata | null {
+  if (track.is_local || track.type !== 'track') {
     return null;
   }
-  const track = item.item;
+
   return {
     id: track.id,
     title: track.name,
@@ -205,6 +215,21 @@ function mapPlaylistItem(item: SpotifyApiPlaylistItem): SpotifyTrack | null {
     releaseYear: Number.parseInt(track.album.release_date.slice(0, 4), 10),
     trackNumber: track.track_number,
     durationMs: track.duration_ms,
+  };
+}
+
+function mapPlaylistItem(item: SpotifyApiPlaylistItem): SpotifyTrack | null {
+  if (item.is_local || item.item == null || item.item.type !== 'track') {
+    return null;
+  }
+
+  const track = mapTrackItem(item.item);
+  if (track === null) {
+    return null;
+  }
+
+  return {
+    ...track,
     addedAt: item.added_at,
   };
 }
@@ -313,6 +338,15 @@ export function createSpotifyClient(deps: SpotifyClientDeps): SpotifyClient {
   // ---------------------------------------------------------------------------
 
   return {
+    async fetchTrack(trackId: string): Promise<SpotifyTrackMetadata> {
+      const track = await api.makeRequest<SpotifyApiTrackItem>('GET', `tracks/${trackId}`);
+      const mapped = mapTrackItem(track);
+      if (mapped === null) {
+        throw new Error(`Spotify track ${trackId} is not an importable track`);
+      }
+      return mapped;
+    },
+
     async fetchPlaylistTracks(playlistId: string): Promise<SpotifyTrack[]> {
       const tracks: SpotifyTrack[] = [];
       let offset = 0;

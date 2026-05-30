@@ -64,6 +64,11 @@ function makeTrack(overrides: Partial<SpotifyTrack> = {}): SpotifyTrack {
 
 function makeSpotifyClient(tracks: SpotifyTrack[]): SpotifyClient {
   return {
+    async fetchTrack(trackId: string) {
+      const track = tracks.find((t) => t.id === trackId) ?? makeTrack({ id: trackId });
+      const { addedAt: _addedAt, ...metadata } = track;
+      return metadata;
+    },
     async fetchPlaylistTracks(_playlistId: string) {
       return tracks;
     },
@@ -528,6 +533,10 @@ describe('runSync — binary preflight (WES-14)', () => {
 
     let spotifyCallCount = 0;
     const trackingClient: SpotifyClient = {
+      async fetchTrack() {
+        spotifyCallCount++;
+        return makeTrack();
+      },
       async fetchPlaylistTracks() {
         spotifyCallCount++;
         return [makeTrack()];
@@ -632,6 +641,9 @@ describe('runSync — fatal errors', () => {
     const db = makeInitDb(config);
 
     const brokenClient: SpotifyClient = {
+      async fetchTrack() {
+        throw new Error('401 Unauthorized');
+      },
       async fetchPlaylistTracks() {
         throw new Error('401 Unauthorized');
       },
