@@ -1,9 +1,9 @@
-import { mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { StoredToken } from './token-store.js';
-import { saveToken } from './token-store.js';
+import { loadToken, saveToken } from './token-store.js';
 
 const SAMPLE_TOKEN: StoredToken = {
   refresh_token: 'test-refresh-token',
@@ -73,5 +73,56 @@ describe('saveToken', () => {
 
     const contents = readFileSync(nestedPath, 'utf-8');
     expect(JSON.parse(contents)).toMatchObject({ refresh_token: SAMPLE_TOKEN.refresh_token });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// loadToken
+// ---------------------------------------------------------------------------
+
+describe('loadToken', () => {
+  let tmpDir: string;
+  let tokenPath: string;
+
+  beforeEach(() => {
+    tmpDir = mkdtempSync(join(tmpdir(), 'spotify-sync-test-'));
+    tokenPath = join(tmpDir, 'auth.json');
+  });
+
+  afterEach(() => {
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('round-trips a token written by saveToken', () => {
+    saveToken(SAMPLE_TOKEN, { path: tokenPath });
+
+    const loaded = loadToken({ path: tokenPath });
+
+    expect(loaded.access_token).toBe(SAMPLE_TOKEN.access_token);
+    expect(loaded.refresh_token).toBe(SAMPLE_TOKEN.refresh_token);
+    expect(loaded.expires_at).toBe(SAMPLE_TOKEN.expires_at);
+    expect(loaded.obtained_at).toBe(SAMPLE_TOKEN.obtained_at);
+    expect(loaded.scope).toBe(SAMPLE_TOKEN.scope);
+    expect(loaded.token_type).toBe(SAMPLE_TOKEN.token_type);
+  });
+
+  it('throws with a spotify-sync auth message when the file is missing', () => {
+    expect(() => loadToken({ path: join(tmpDir, 'nonexistent.json') })).toThrow(
+      /spotify-sync auth/,
+    );
+  });
+
+  it('throws with a spotify-sync auth message when the file contains invalid JSON', () => {
+    writeFileSync(tokenPath, 'not valid json', 'utf-8');
+
+    expect(() => loadToken({ path: tokenPath })).toThrow(/spotify-sync auth/);
+  });
+
+  it('throws with a spotify-sync auth message when required fields are missing', () => {
+    // Omit refresh_token — simulates a truncated or hand-edited file.
+    const partial = { access_token: 'at', expires_at: 9999999999999 };
+    writeFileSync(tokenPath, JSON.stringify(partial), 'utf-8');
+
+    expect(() => loadToken({ path: tokenPath })).toThrow(/spotify-sync auth/);
   });
 });
