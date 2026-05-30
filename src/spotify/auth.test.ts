@@ -1,6 +1,12 @@
 import * as http from 'node:http';
 import { describe, expect, it } from 'vitest';
-import { SCOPES, buildAuthorizeUrl, exchangeCodeForToken, runAuthFlow } from './auth.js';
+import {
+  SCOPES,
+  buildAuthorizeUrl,
+  exchangeCodeForToken,
+  refreshAccessToken,
+  runAuthFlow,
+} from './auth.js';
 
 // ---------------------------------------------------------------------------
 // buildAuthorizeUrl
@@ -174,6 +180,113 @@ describe('exchangeCodeForToken', () => {
         fetchFn: fakeFetch,
       }),
     ).rejects.toThrow(/400/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// refreshAccessToken
+// ---------------------------------------------------------------------------
+
+describe('refreshAccessToken', () => {
+  const SPOTIFY_TOKEN_URL = 'https://accounts.spotify.com/api/token';
+
+  /** Build a fake fetch returning a Spotify token-refresh response. */
+  function makeRefreshFetch(overrides?: Partial<Record<string, unknown>>) {
+    const body = {
+      access_token: 'new-access-token',
+      token_type: 'Bearer',
+      scope: 'playlist-read-private playlist-read-collaborative',
+      expires_in: 3600,
+      // No refresh_token by default — Spotify omits it on refresh.
+      ...overrides,
+    };
+    return async (_url: string | URL | Request, _init?: RequestInit): Promise<Response> =>
+      new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+  }
+
+  it('POSTs to the Spotify token endpoint', async () => {
+    const calls: { url: string }[] = [];
+    const fakeFetch = async (
+      url: string | URL | Request,
+      init?: RequestInit,
+    ): Promise<Response> => {
+      calls.push({ url: String(url) });
+      return makeRefreshFetch()(url, init);
+    };
+
+    await refreshAccessToken({ clientId: 'cid', refreshToken: 'rt', fetchFn: fakeFetch });
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).toBe(SPOTIFY_TOKEN_URL);
+  });
+
+  it('sends grant_type=refresh_token, refresh_token, and client_id — no client_secret', async () => {
+    const bodies: URLSearchParams[] = [];
+    const fakeFetch = async (
+      url: string | URL | Request,
+      init?: RequestInit,
+    ): Promise<Response> => {
+      bodies.push(new URLSearchParams(String(init?.body ?? '')));
+      return makeRefreshFetch()(url, init);
+    };
+
+    await refreshAccessToken({ clientId: 'my-client', refreshToken: 'my-rt', fetchFn: fakeFetch });
+
+    const body = bodies[0];
+    expect(body.get('grant_type')).toBe('refresh_token');
+    expect(body.get('refresh_token')).toBe('my-rt');
+    expect(body.get('client_id')).toBe('my-client');
+    expect(body.has('client_secret')).toBe(false);
+  });
+
+  it('maps the response to a StoredToken', async () => {
+    const before = Date.now();
+    const token = await refreshAccessToken({
+      clientId: 'cid',
+      refreshToken: 'old-rt',
+      fetchFn: makeRefreshFetch(),
+    });
+    const after = Date.now();
+
+    expect(token.access_token).toBe('new-access-token');
+    expect(token.token_type).toBe('Bearer');
+    expect(token.expires_at).toBeGreaterThanOrEqual(before + 3600 * 1000);
+    expect(token.expires_at).toBeLessThanOrEqual(after + 3600 * 1000);
+    expect(token.obtained_at).toBeGreaterThanOrEqual(before);
+    expect(token.obtained_at).toBeLessThanOrEqual(after);
+  });
+
+  it('carries forward the existing refresh_token when Spotify omits one', async () => {
+    // Response has no refresh_token — common Spotify behaviour on token refresh.
+    const token = await refreshAccessToken({
+      clientId: 'cid',
+      refreshToken: 'existing-rt',
+      fetchFn: makeRefreshFetch(), // no refresh_token in response
+    });
+
+    expect(token.refresh_token).toBe('existing-rt');
+  });
+
+  it('uses the new refresh_token when Spotify returns one', async () => {
+    const token = await refreshAccessToken({
+      clientId: 'cid',
+      refreshToken: 'old-rt',
+      fetchFn: makeRefreshFetch({ refresh_token: 'rotated-rt' }),
+    });
+
+    expect(token.refresh_token).toBe('rotated-rt');
+  });
+
+  it('throws when the token endpoint returns a non-2xx status', async () => {
+    const fakeFetch = async (): Promise<Response> =>
+      new Response('{"error":"invalid_grant"}', { status: 400 });
+
+    await expect(
+      refreshAccessToken({ clientId: 'cid', refreshToken: 'bad-rt', fetchFn: fakeFetch }),
+    ).rejects.toThrow(/refresh failed.*400/i);
   });
 });
 

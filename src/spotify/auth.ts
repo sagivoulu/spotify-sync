@@ -76,7 +76,8 @@ interface SpotifyTokenResponse {
   token_type: string;
   scope: string;
   expires_in: number;
-  refresh_token: string;
+  /** Present on authorization_code exchange; may be omitted on refresh_token grant. */
+  refresh_token?: string;
 }
 
 /**
@@ -113,9 +114,66 @@ export async function exchangeCodeForToken(params: ExchangeParams): Promise<Stor
 
   const data = (await response.json()) as SpotifyTokenResponse;
 
+  if (!data.refresh_token) {
+    throw new Error('Spotify token exchange did not return a refresh_token');
+  }
+
   return {
     access_token: data.access_token,
     refresh_token: data.refresh_token,
+    token_type: data.token_type,
+    scope: data.scope,
+    expires_at: obtainedAt + data.expires_in * 1000,
+    obtained_at: obtainedAt,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// refreshAccessToken
+// ---------------------------------------------------------------------------
+
+export interface RefreshParams {
+  clientId: string;
+  /** The current refresh token. Carried forward if Spotify omits one in the response. */
+  refreshToken: string;
+  fetchFn?: typeof fetch;
+}
+
+/**
+ * Exchange a refresh token for a new access token.
+ *
+ * Public-client grant — client_id + refresh_token only; no client_secret.
+ * Spotify may omit refresh_token in the response (token rotation is optional);
+ * when absent, the existing refreshToken is preserved in the returned StoredToken.
+ */
+export async function refreshAccessToken(params: RefreshParams): Promise<StoredToken> {
+  const fetchFn = params.fetchFn ?? fetch;
+  const obtainedAt = Date.now();
+
+  const body = new URLSearchParams({
+    grant_type: 'refresh_token',
+    refresh_token: params.refreshToken,
+    client_id: params.clientId,
+    // No client_secret — intentional public-client behaviour (same as exchangeCodeForToken).
+  });
+
+  const response = await fetchFn(SPOTIFY_TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: body.toString(),
+  });
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '(no body)');
+    throw new Error(`Spotify token refresh failed (${response.status}): ${text}`);
+  }
+
+  const data = (await response.json()) as SpotifyTokenResponse;
+
+  return {
+    access_token: data.access_token,
+    // Carry forward the existing refresh_token when Spotify omits one (token rotation is optional).
+    refresh_token: data.refresh_token ?? params.refreshToken,
     token_type: data.token_type,
     scope: data.scope,
     expires_at: obtainedAt + data.expires_in * 1000,

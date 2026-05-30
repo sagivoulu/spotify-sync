@@ -1,4 +1,4 @@
-import { chmodSync, mkdirSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { authFilePath, configDir } from '../config/index.js';
 
@@ -56,4 +56,46 @@ export function saveToken(token: StoredToken, options?: SaveTokenOptions): void 
   // Explicit chmod guarantees 0600 even when overwriting an existing file,
   // since `mode` in writeFileSync only applies on creation.
   chmodSync(filePath, 0o600);
+}
+
+/**
+ * Load a previously saved token from auth.json.
+ *
+ * Throws a user-facing error (mentioning `spotify-sync auth`) when:
+ * - The file is missing (ENOENT) — user hasn't authenticated yet.
+ * - The file cannot be parsed or is missing required fields — corrupted.
+ */
+export function loadToken(options?: SaveTokenOptions): StoredToken {
+  const env = options?.env ?? process.env;
+  const filePath = options?.path ?? authFilePath(env);
+
+  let raw: string;
+  try {
+    raw = readFileSync(filePath, 'utf-8');
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new Error(
+        `No saved credentials found at ${filePath}. Run \`spotify-sync auth\` to authenticate.`,
+      );
+    }
+    throw err;
+  }
+
+  let data: unknown;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    throw new Error(
+      `auth.json at ${filePath} is corrupt or incomplete. Run \`spotify-sync auth\` to re-authenticate.`,
+    );
+  }
+
+  const token = data as Partial<StoredToken>;
+  if (!token.refresh_token || !token.access_token || token.expires_at === undefined) {
+    throw new Error(
+      `auth.json at ${filePath} is corrupt or incomplete. Run \`spotify-sync auth\` to re-authenticate.`,
+    );
+  }
+
+  return data as StoredToken;
 }
