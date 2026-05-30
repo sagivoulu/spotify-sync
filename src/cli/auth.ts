@@ -21,6 +21,43 @@ import { openBrowser } from './open-browser.js';
 // file is the only place that prints.
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Setup guide — shown when Spotify credentials are missing from config.
+// ---------------------------------------------------------------------------
+
+const SPOTIFY_SETUP_GUIDE = (port: number) => `
+Spotify credentials not configured.
+
+To use spotify-sync you need to register a Spotify developer app:
+
+  1. Go to https://developer.spotify.com/dashboard and create an app.
+
+  2. In the app's Settings → Redirect URIs, add:
+       http://localhost:${port}/callback
+
+  3. Copy the Client ID and Client Secret from the app settings.
+
+  4. Create ~/.config/spotify-sync/config.json:
+
+       {
+         "spotify": {
+           "client_id": "YOUR_CLIENT_ID",
+           "client_secret": "YOUR_CLIENT_SECRET",
+           "playlist_url": "https://open.spotify.com/playlist/..."
+         },
+         "library": {
+           "path": "/path/to/your/music"
+         }
+       }
+
+     Or set env vars instead:
+       SPOTIFY_SYNC_SPOTIFY_CLIENT_ID=...
+       SPOTIFY_SYNC_SPOTIFY_CLIENT_SECRET=...
+
+  5. Re-run: spotify-sync auth
+
+`;
+
 export interface RunAuthCommandOptions {
   /** Whether to emit JSON output instead of human-readable text. */
   json: boolean;
@@ -52,7 +89,13 @@ export async function runAuthCommand(options: RunAuthCommandOptions): Promise<vo
     config = loadConfig({ cliFlags: mapCliFlags(globals) });
   } catch (err) {
     if (err instanceof ConfigError) {
-      process.stderr.write(`${err.message}\n`);
+      const isCredentialsMissing =
+        err.message.includes('spotify.client_id') || err.message.includes('spotify.client_secret');
+      if (isCredentialsMissing && !json) {
+        process.stderr.write(SPOTIFY_SETUP_GUIDE(port));
+      } else {
+        process.stderr.write(`${err.message}\n`);
+      }
       process.exitCode = 2;
       return;
     }
