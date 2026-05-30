@@ -117,6 +117,7 @@ src/
 ├── backend/           # Pluggable DownloadBackend interface + yt-dlp implementation (v1)
 ├── db/                # SQLite state via better-sqlite3; migrations; PRAGMA foreign_keys ON
 ├── config/            # Config loading, XDG paths, env/flag/file precedence
+├── library/           # Filename sanitization, collision resolution, atomic file placement (WES-11)
 └── tagging/           # ID3 read/write
 
 bin/
