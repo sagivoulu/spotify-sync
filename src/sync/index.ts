@@ -259,6 +259,7 @@ export async function runSync(opts: RunSyncOptions = {}): Promise<SyncResult> {
   onEvent({
     type: 'run-start',
     runId: syncRunId,
+    libraryPath: config.library.path,
     pendingCount: pendingTracks.length,
     addedCount: added,
     removedMarkedCount: removedMarked,
