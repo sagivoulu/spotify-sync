@@ -187,6 +187,10 @@ export async function runAuthFlow(params: RunAuthFlowParams): Promise<StoredToke
     const settle = (fn: () => void) => {
       if (settled) return;
       settled = true;
+      // closeAllConnections() (Node 18.2+) forcibly ends keep-alive connections so
+      // server.close() can invoke its callback immediately rather than waiting for
+      // the browser's keep-alive timeout (which can be 30-60s+).
+      server.closeAllConnections();
       server.close(() => fn());
     };
 
@@ -203,7 +207,9 @@ export async function runAuthFlow(params: RunAuthFlowParams): Promise<StoredToke
       const code = reqUrl.searchParams.get('code');
 
       if (error) {
-        res.writeHead(400, { 'Content-Type': 'text/html' }).end(errorHtml(error));
+        res
+          .writeHead(400, { 'Content-Type': 'text/html', Connection: 'close' })
+          .end(errorHtml(error));
         settle(() => reject(new Error(`Spotify denied authorization: ${error}`)));
         return;
       }
@@ -221,7 +227,10 @@ export async function runAuthFlow(params: RunAuthFlowParams): Promise<StoredToke
       }
 
       // Respond to the browser immediately, then do the async token exchange.
-      res.writeHead(200, { 'Content-Type': 'text/html' }).end(SUCCESS_HTML);
+      // Connection: close tells the browser to drop the TCP connection after the
+      // response, so server.closeAllConnections() / server.close() can resolve
+      // immediately rather than waiting for the keep-alive timeout.
+      res.writeHead(200, { 'Content-Type': 'text/html', Connection: 'close' }).end(SUCCESS_HTML);
 
       exchangeCodeForToken({ clientId, code, redirectUri, codeVerifier, fetchFn })
         .then((token) => settle(() => resolve(token)))
