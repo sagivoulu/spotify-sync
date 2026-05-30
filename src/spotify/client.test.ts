@@ -133,6 +133,47 @@ function makeRefreshBody(overrides?: Partial<Record<string, unknown>>): object {
 const SPOTIFY_TOKEN_URL = 'https://accounts.spotify.com/api/token';
 
 // ---------------------------------------------------------------------------
+// fetchTrack — single-track metadata for import
+// ---------------------------------------------------------------------------
+
+describe('fetchTrack — field mapping', () => {
+  it('maps a single Spotify track to taggable metadata', async () => {
+    const item = makeTrackItem({
+      id: 'track-import',
+      name: 'Import Song',
+      artists: ['Alice', 'Bob'],
+      albumName: 'Import Album',
+      releaseDate: '2022-11-04',
+      durationMs: 190000,
+      trackNumber: 3,
+    });
+
+    const requestedUrls: string[] = [];
+    const fakeFetch = async (url: string | URL | Request): Promise<Response> => {
+      requestedUrls.push(String(url));
+      return new Response(JSON.stringify(item.item), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    };
+
+    const client = createSpotifyClient({ clientId: 'cid', token: VALID_TOKEN, fetchFn: fakeFetch });
+    const track = await client.fetchTrack('track-import');
+
+    expect(requestedUrls[0]).toContain('/tracks/track-import');
+    expect(track.id).toBe('track-import');
+    expect(track.title).toBe('Import Song');
+    expect(track.artists).toEqual(['Alice', 'Bob']);
+    expect(track.album.name).toBe('Import Album');
+    expect(track.album.images).toHaveLength(2);
+    expect(track.releaseYear).toBe(2022);
+    expect(track.trackNumber).toBe(3);
+    expect(track.durationMs).toBe(190000);
+    expect('addedAt' in track).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // fetchPlaylistTracks — basic field mapping
 // ---------------------------------------------------------------------------
 

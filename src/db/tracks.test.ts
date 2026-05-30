@@ -3,6 +3,7 @@ import { openDatabase } from './connection.js';
 import { registerLibrary } from './index.js';
 import { runMigrations } from './migrations.js';
 import {
+  getImportTarget,
   incrementAttempts,
   listDownloadedTracks,
   listPendingTracks,
@@ -423,6 +424,48 @@ describe('listDownloadedTracks', () => {
     const rows = listDownloadedTracks(db, { libraryId: 'default', source: 'spotify' });
     db.close();
     expect(rows).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getImportTarget
+// ---------------------------------------------------------------------------
+
+describe('getImportTarget', () => {
+  it('returns an existing Spotify track row for import regardless of status', () => {
+    const db = makeDb();
+    const { id } = upsertTrack(db, { ...BASE_PARAMS, sourceId: 'import-me' });
+    db.prepare(
+      `UPDATE tracks SET status='needs_manual', file_path='Existing Name.mp3' WHERE id=?`,
+    ).run(id);
+
+    const row = getImportTarget(db, {
+      libraryId: 'default',
+      source: 'spotify',
+      sourceId: 'import-me',
+    });
+    db.close();
+
+    expect(row).toEqual({
+      id,
+      source_id: 'import-me',
+      artist: 'Caro Emerald',
+      title: 'Back It Up',
+      file_path: 'Existing Name.mp3',
+    });
+  });
+
+  it('returns null when the track is not known in this library/source', () => {
+    const db = makeDb();
+
+    const row = getImportTarget(db, {
+      libraryId: 'default',
+      source: 'spotify',
+      sourceId: 'missing',
+    });
+    db.close();
+
+    expect(row).toBeNull();
   });
 });
 

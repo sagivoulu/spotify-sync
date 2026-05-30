@@ -5,12 +5,14 @@ import { runMigrations } from './migrations.js';
 
 export type {
   DownloadedTrackRow,
+  ImportTargetRow,
   MarkDownloadedParams,
   MarkFailedParams,
   TrackRow,
   UpsertTrackParams,
 } from './tracks.js';
 export {
+  getImportTarget,
   incrementAttempts,
   listDownloadedTracks,
   listPendingTracks,

@@ -50,6 +50,14 @@ const SAMPLE_TRACKS: SpotifyTrack[] = [
 ];
 
 const FAKE_CLIENT: SpotifyClient = {
+  fetchTrack: async (trackId) => ({
+    id: trackId,
+    title: 'Track',
+    artists: ['Artist'],
+    album: { id: 'album', name: 'Album', images: [] },
+    releaseYear: 2020,
+    durationMs: 200000,
+  }),
   fetchPlaylistTracks: async () => [],
   fetchPlaylistSummary: async () => ({
     name: 'My DJ Set',
@@ -215,6 +223,14 @@ describe('runDoctor', () => {
     writeAuthJson(tmpDir);
 
     const failingClient: SpotifyClient = {
+      fetchTrack: async (trackId) => ({
+        id: trackId,
+        title: 'Track',
+        artists: ['Artist'],
+        album: { id: 'album', name: 'Album', images: [] },
+        releaseYear: 2020,
+        durationMs: 200000,
+      }),
       fetchPlaylistTracks: async () => [],
       fetchPlaylistSummary: async () => {
         throw new Error('Network error');
@@ -239,6 +255,14 @@ describe('runDoctor', () => {
 
     let capturedSampleSize = -1;
     const trackingClient: SpotifyClient = {
+      fetchTrack: async (trackId) => ({
+        id: trackId,
+        title: 'Track',
+        artists: ['Artist'],
+        album: { id: 'album', name: 'Album', images: [] },
+        releaseYear: 2020,
+        durationMs: 200000,
+      }),
       fetchPlaylistTracks: async () => [],
       fetchPlaylistSummary: async (_id, size) => {
         capturedSampleSize = size;

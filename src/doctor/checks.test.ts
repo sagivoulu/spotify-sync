@@ -191,6 +191,14 @@ function makeFakeClient(overrides?: {
   fetchPlaylistSummary?: SpotifyClient['fetchPlaylistSummary'];
 }): SpotifyClient {
   return {
+    fetchTrack: async (trackId) => ({
+      id: trackId,
+      title: 'Track',
+      artists: ['Artist'],
+      album: { id: 'album', name: 'Album', images: [] },
+      releaseYear: 2020,
+      durationMs: 200000,
+    }),
     fetchPlaylistTracks: async () => [],
     fetchPlaylistSummary:
       overrides?.fetchPlaylistSummary ??
