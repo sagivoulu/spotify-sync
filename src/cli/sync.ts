@@ -26,12 +26,25 @@ export interface RunSyncCommandOptions {
   globals: { libraryPath?: string; dbPath?: string };
 }
 
+export interface RunSyncCommandDeps {
+  /**
+   * Injectable runSync — lets tests verify exit-code mapping (FatalSyncError → 2)
+   * without wiring up real binaries, a DB, or Spotify credentials.
+   * Defaults to the real runSync imported above.
+   */
+  runSync?: typeof runSync;
+}
+
 /**
  * Run the `spotify-sync sync` command.
  * Exported for testing; `src/cli/program.ts` calls this from the .action() handler.
  */
-export async function runSyncCommand(options: RunSyncCommandOptions): Promise<void> {
+export async function runSyncCommand(
+  options: RunSyncCommandOptions,
+  deps: RunSyncCommandDeps = {},
+): Promise<void> {
   const { json, globals } = options;
+  const run = deps.runSync ?? runSync;
 
   // In JSON mode we suppress per-event output and print the final result.
   // In human mode we print one line per event as the run progresses.
@@ -82,7 +95,7 @@ export async function runSyncCommand(options: RunSyncCommandOptions): Promise<vo
   let result: Awaited<ReturnType<typeof runSync>>;
 
   try {
-    result = await runSync({
+    result = await run({
       cliFlags: mapCliFlags(globals),
       env: process.env,
       onEvent,

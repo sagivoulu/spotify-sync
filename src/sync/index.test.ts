@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { DownloadResult } from '../backend/index.js';
 import { BackendError } from '../backend/index.js';
+import type { SubprocessRunner } from '../backend/index.js';
+import { MINIMUM_YTDLP_VERSION } from '../backend/yt-dlp.js';
 import type { Config } from '../config/schema.js';
 import { openDatabase } from '../db/connection.js';
 import { initDb } from '../db/index.js';
 import { registerLibrary } from '../db/index.js';
 import { runMigrations } from '../db/migrations.js';
+import { checkFfmpeg, checkYtDlp } from '../doctor/checks.js';
 import type { SpotifyClient, SpotifyTrack } from '../spotify/index.js';
 import { createFakeBackend } from '../testing/fake-backend.js';
 import { FatalSyncError, runSync } from './index.js';
@@ -402,20 +405,170 @@ describe('runSync — result.ok reflects failures', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Acceptance criteria: fatal error (binary missing → FatalSyncError)
+// Acceptance criteria: binary preflight checks (WES-14)
 // ---------------------------------------------------------------------------
 
-describe('runSync — fatal errors', () => {
-  it('throws FatalSyncError when binaryRunner reports yt-dlp unavailable', async () => {
+/** Build a SubprocessRunner that returns the given result for any invocation. */
+function makeBinaryRunner(
+  result: { stdout: string; stderr: string; code: number } | 'enoent',
+): SubprocessRunner {
+  return async (_binary, _args) => {
+    if (result === 'enoent') {
+      throw Object.assign(new Error('spawn ENOENT'), { code: 'ENOENT' });
+    }
+    return result;
+  };
+}
+
+/** Runner where yt-dlp is present (current version) and ffmpeg is present. */
+const bothPresentRunner: SubprocessRunner = async (binary, _args) => {
+  if (binary === 'yt-dlp') return { stdout: '2026.03.17\n', stderr: '', code: 0 };
+  // ffmpeg -version outputs its version on the first stdout line
+  return { stdout: 'ffmpeg version 7.1 Copyright ...', stderr: '', code: 0 };
+};
+
+/** Runner where yt-dlp is missing (ENOENT) and ffmpeg is present. */
+const ytDlpMissingRunner: SubprocessRunner = async (binary, _args) => {
+  if (binary === 'yt-dlp') {
+    throw Object.assign(new Error('spawn yt-dlp ENOENT'), { code: 'ENOENT' });
+  }
+  return { stdout: 'ffmpeg version 7.1', stderr: '', code: 0 };
+};
+
+/** Runner where ffmpeg is missing (ENOENT) and yt-dlp is present. */
+const ffmpegMissingRunner: SubprocessRunner = async (binary, _args) => {
+  if (binary === 'ffmpeg') {
+    throw Object.assign(new Error('spawn ffmpeg ENOENT'), { code: 'ENOENT' });
+  }
+  return { stdout: '2026.03.17\n', stderr: '', code: 0 };
+};
+
+describe('runSync — binary preflight (WES-14)', () => {
+  it('throws FatalSyncError naming yt-dlp with install instructions when yt-dlp is missing', async () => {
     const config = makeConfig();
     const db = makeInitDb(config);
 
-    // binaryRunner that simulates yt-dlp missing.
-    const fakeBinaryRunner = async (binary: string) => {
-      if (binary === 'yt-dlp') {
-        throw Object.assign(new Error('spawn ENOENT'), { code: 'ENOENT' });
-      }
-      return { stdout: 'ffmpeg version 6.0', stderr: '', code: 0 };
+    await expect(
+      runSync({
+        config,
+        db,
+        spotifyClient: makeSpotifyClient([makeTrack()]),
+        binaryRunner: ytDlpMissingRunner,
+        backend: createFakeBackend(),
+        tagFileFn: noopTagFile,
+        placeFileFn: noopPlaceFile,
+        now: () => '2026-05-30T10:00:00.000Z',
+      }),
+    ).rejects.toThrow(
+      expect.objectContaining({
+        name: 'FatalSyncError',
+        // Message must name the binary (acceptance criterion)
+        message: expect.stringMatching(/yt-dlp/),
+      }),
+    );
+
+    db.close();
+  });
+
+  it('error message includes install instructions (mirrors doctor output)', async () => {
+    const config = makeConfig();
+    const db = makeInitDb(config);
+
+    let thrownError: unknown;
+    try {
+      await runSync({
+        config,
+        db,
+        spotifyClient: makeSpotifyClient([makeTrack()]),
+        binaryRunner: ytDlpMissingRunner,
+        backend: createFakeBackend(),
+        tagFileFn: noopTagFile,
+        placeFileFn: noopPlaceFile,
+        now: () => '2026-05-30T10:00:00.000Z',
+      });
+    } catch (err) {
+      thrownError = err;
+    }
+
+    expect(thrownError).toBeInstanceOf(FatalSyncError);
+    // Must carry doctor's install instructions, not a bare error message
+    expect((thrownError as FatalSyncError).message).toMatch(/not found on PATH/);
+
+    db.close();
+  });
+
+  it('throws FatalSyncError naming ffmpeg when ffmpeg is missing', async () => {
+    const config = makeConfig();
+    const db = makeInitDb(config);
+
+    await expect(
+      runSync({
+        config,
+        db,
+        spotifyClient: makeSpotifyClient([makeTrack()]),
+        binaryRunner: ffmpegMissingRunner,
+        backend: createFakeBackend(),
+        tagFileFn: noopTagFile,
+        placeFileFn: noopPlaceFile,
+        now: () => '2026-05-30T10:00:00.000Z',
+      }),
+    ).rejects.toThrow(
+      expect.objectContaining({
+        name: 'FatalSyncError',
+        message: expect.stringMatching(/ffmpeg/),
+      }),
+    );
+
+    db.close();
+  });
+
+  it('probe runs before any DB write — sync_runs is empty and Spotify is never called', async () => {
+    const config = makeConfig();
+    const db = makeInitDb(config);
+
+    let spotifyCallCount = 0;
+    const trackingClient: SpotifyClient = {
+      async fetchPlaylistTracks() {
+        spotifyCallCount++;
+        return [makeTrack()];
+      },
+      async fetchPlaylistSummary() {
+        spotifyCallCount++;
+        return { name: 'Test', trackCount: 1, tracks: [makeTrack()] };
+      },
+    };
+
+    await expect(
+      runSync({
+        config,
+        db,
+        spotifyClient: trackingClient,
+        binaryRunner: ytDlpMissingRunner,
+        backend: createFakeBackend(),
+        tagFileFn: noopTagFile,
+        placeFileFn: noopPlaceFile,
+        now: () => '2026-05-30T10:00:00.000Z',
+      }),
+    ).rejects.toBeInstanceOf(FatalSyncError);
+
+    // Spotify must not have been called
+    expect(spotifyCallCount).toBe(0);
+
+    // No sync_runs row should have been inserted
+    const runCount = (db.prepare('SELECT COUNT(*) as n FROM sync_runs').get() as { n: number }).n;
+    expect(runCount).toBe(0);
+
+    db.close();
+  });
+
+  it('throws FatalSyncError for an outdated yt-dlp (misconfigured binary)', async () => {
+    const config = makeConfig();
+    const db = makeInitDb(config);
+
+    // Version older than MINIMUM_YTDLP_VERSION
+    const outdatedRunner: SubprocessRunner = async (binary, _args) => {
+      if (binary === 'yt-dlp') return { stdout: '2025.01.01\n', stderr: '', code: 0 };
+      return { stdout: 'ffmpeg version 7.1', stderr: '', code: 0 };
     };
 
     await expect(
@@ -423,18 +576,57 @@ describe('runSync — fatal errors', () => {
         config,
         db,
         spotifyClient: makeSpotifyClient([makeTrack()]),
-        // No pre-built backend → binaryRunner probe runs
-        binaryRunner: fakeBinaryRunner,
-        backend: createFakeBackend(), // still inject backend so we don't need real yt-dlp to build it
+        binaryRunner: outdatedRunner,
+        backend: createFakeBackend(),
         tagFileFn: noopTagFile,
         placeFileFn: noopPlaceFile,
         now: () => '2026-05-30T10:00:00.000Z',
       }),
-    ).rejects.toThrow(FatalSyncError);
+    ).rejects.toThrow(
+      expect.objectContaining({
+        name: 'FatalSyncError',
+        message: expect.stringMatching(/yt-dlp/),
+      }),
+    );
 
     db.close();
   });
 
+  it('does not throw when both binaries are present and up to date', async () => {
+    const config = makeConfig();
+    const opts = makeOpts(config, [makeTrack()]);
+
+    // Swap opts.backend for one with an explicit binaryRunner so the probe runs
+    // but is satisfied. makeOpts injects a backend without binaryRunner (skips probe).
+    // We pass binaryRunner here to trigger the probe path.
+    const result = await runSync({
+      ...opts,
+      binaryRunner: bothPresentRunner,
+    });
+
+    expect(result.ok).toBe(true);
+    opts.db.close();
+  });
+
+  it('versions are accessible for status output via checkYtDlp/checkFfmpeg with the same runner', async () => {
+    // WES-14 acceptance criterion: "versions are captured and accessible for status output".
+    // status (WES-15) will re-probe live — confirm the shared probe functions return version data.
+    const ytDlp = await checkYtDlp({ runner: bothPresentRunner });
+    const ffmpeg = await checkFfmpeg({ runner: bothPresentRunner });
+
+    expect(ytDlp.ok).toBe(true);
+    expect(ytDlp.data?.version).toBeTruthy();
+
+    expect(ffmpeg.ok).toBe(true);
+    expect(ffmpeg.data?.version).toBeTruthy();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Acceptance criteria: fatal error (Spotify / other)
+// ---------------------------------------------------------------------------
+
+describe('runSync — fatal errors', () => {
   it('throws FatalSyncError when Spotify client throws during fetch', async () => {
     const config = makeConfig();
     const db = makeInitDb(config);
