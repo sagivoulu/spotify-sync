@@ -10,6 +10,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import type { SubprocessRunner } from '../backend/yt-dlp.js';
 import type { SpotifyClient, SpotifyTrack } from '../spotify/index.js';
 import type { StoredToken } from '../spotify/token-store.js';
 import { runDoctor } from './index.js';
@@ -55,6 +56,26 @@ const FAKE_CLIENT: SpotifyClient = {
     trackCount: 50,
     tracks: SAMPLE_TRACKS,
   }),
+};
+
+/**
+ * A fake binary runner that reports yt-dlp and ffmpeg as available.
+ * Injected via binaryRunner so tests don't require the real binaries on PATH.
+ */
+const FAKE_BINARY_RUNNER: SubprocessRunner = async (binary, _args) => {
+  if (binary === 'yt-dlp') return { stdout: '2024.12.13', stderr: '', code: 0 };
+  if (binary === 'ffmpeg')
+    return {
+      stdout: 'ffmpeg version 6.0 Copyright (c) 2000-2023 the FFmpeg developers',
+      stderr: '',
+      code: 0,
+    };
+  return { stdout: '', stderr: 'unknown binary', code: 1 };
+};
+
+/** A fake binary runner that reports all binaries as missing (ENOENT). */
+const MISSING_BINARY_RUNNER: SubprocessRunner = async () => {
+  throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
 };
 
 /** Minimal valid config passed as cliFlags. */
@@ -104,17 +125,18 @@ describe('runDoctor', () => {
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it('returns ok=true with 3 passing checks on a valid setup', async () => {
+  it('returns ok=true with 5 passing checks on a valid setup', async () => {
     writeAuthJson(tmpDir);
 
     const result = await runDoctor({
       cliFlags: VALID_CONFIG_FLAGS,
       env: makeIsolatedEnv(tmpDir),
       spotifyClient: FAKE_CLIENT,
+      binaryRunner: FAKE_BINARY_RUNNER,
     });
 
     expect(result.ok).toBe(true);
-    expect(result.results).toHaveLength(3);
+    expect(result.results).toHaveLength(5);
     expect(result.results.every((r) => r.ok)).toBe(true);
   });
 
@@ -125,6 +147,7 @@ describe('runDoctor', () => {
       cliFlags: VALID_CONFIG_FLAGS,
       env: makeIsolatedEnv(tmpDir),
       spotifyClient: FAKE_CLIENT,
+      binaryRunner: FAKE_BINARY_RUNNER,
     });
 
     const spotifyCheck = result.results.find((r) => r.name === 'Spotify');
@@ -139,15 +162,17 @@ describe('runDoctor', () => {
     ]);
   });
 
-  it('skips Auth and Spotify when Config fails, returns ok=false', async () => {
+  it('skips Auth and Spotify when Config fails, but still runs binary checks', async () => {
     // No config flags → loadConfig will fail
     const result = await runDoctor({
       env: makeIsolatedEnv(tmpDir),
       spotifyClient: FAKE_CLIENT,
+      binaryRunner: FAKE_BINARY_RUNNER,
     });
 
     expect(result.ok).toBe(false);
-    expect(result.results).toHaveLength(3);
+    // Config + Auth(skipped) + Spotify(skipped) + yt-dlp + ffmpeg = 5
+    expect(result.results).toHaveLength(5);
 
     const [config, auth, spotify] = result.results;
     expect(config.ok).toBe(false);
@@ -158,6 +183,12 @@ describe('runDoctor', () => {
 
     expect(spotify.ok).toBe(false);
     expect(spotify.detail).toMatch(/skipped/i);
+
+    // Binary checks still ran
+    const ytDlp = result.results.find((r) => r.name === 'yt-dlp');
+    const ffmpeg = result.results.find((r) => r.name === 'ffmpeg');
+    expect(ytDlp?.ok).toBe(true);
+    expect(ffmpeg?.ok).toBe(true);
   });
 
   it('skips Spotify when Auth fails, returns ok=false', async () => {
@@ -166,10 +197,11 @@ describe('runDoctor', () => {
       cliFlags: VALID_CONFIG_FLAGS,
       env: makeIsolatedEnv(tmpDir),
       spotifyClient: FAKE_CLIENT,
+      binaryRunner: FAKE_BINARY_RUNNER,
     });
 
     expect(result.ok).toBe(false);
-    expect(result.results).toHaveLength(3);
+    expect(result.results).toHaveLength(5);
 
     const [config, auth, spotify] = result.results;
     expect(config.ok).toBe(true);
@@ -193,6 +225,7 @@ describe('runDoctor', () => {
       cliFlags: VALID_CONFIG_FLAGS,
       env: makeIsolatedEnv(tmpDir),
       spotifyClient: failingClient,
+      binaryRunner: FAKE_BINARY_RUNNER,
     });
 
     expect(result.ok).toBe(false);
@@ -217,8 +250,50 @@ describe('runDoctor', () => {
       cliFlags: VALID_CONFIG_FLAGS,
       env: makeIsolatedEnv(tmpDir),
       spotifyClient: trackingClient,
+      binaryRunner: FAKE_BINARY_RUNNER,
     });
 
     expect(capturedSampleSize).toBe(2);
+  });
+
+  it('binary checks report ok=false with install instructions when binaries are missing', async () => {
+    writeAuthJson(tmpDir);
+
+    const result = await runDoctor({
+      cliFlags: VALID_CONFIG_FLAGS,
+      env: makeIsolatedEnv(tmpDir),
+      spotifyClient: FAKE_CLIENT,
+      binaryRunner: MISSING_BINARY_RUNNER,
+    });
+
+    expect(result.ok).toBe(false);
+    const ytDlp = result.results.find((r) => r.name === 'yt-dlp');
+    const ffmpeg = result.results.find((r) => r.name === 'ffmpeg');
+
+    expect(ytDlp?.ok).toBe(false);
+    expect(ytDlp?.detail).toMatch(/not found on PATH/i);
+
+    expect(ffmpeg?.ok).toBe(false);
+    expect(ffmpeg?.detail).toMatch(/not found on PATH/i);
+  });
+
+  it('yt-dlp and ffmpeg checks include version in data on success', async () => {
+    writeAuthJson(tmpDir);
+
+    const result = await runDoctor({
+      cliFlags: VALID_CONFIG_FLAGS,
+      env: makeIsolatedEnv(tmpDir),
+      spotifyClient: FAKE_CLIENT,
+      binaryRunner: FAKE_BINARY_RUNNER,
+    });
+
+    const ytDlp = result.results.find((r) => r.name === 'yt-dlp');
+    const ffmpeg = result.results.find((r) => r.name === 'ffmpeg');
+
+    expect(ytDlp?.ok).toBe(true);
+    expect(ytDlp?.data?.version).toBe('2024.12.13');
+
+    expect(ffmpeg?.ok).toBe(true);
+    expect(ffmpeg?.data?.version).toBe('6.0');
   });
 });

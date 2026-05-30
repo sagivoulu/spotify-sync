@@ -10,6 +10,8 @@
 // Unexpected I/O errors (permissions, filesystem corruption, etc.) propagate.
 // ---------------------------------------------------------------------------
 
+import { getFfmpegVersion, getYtDlpVersion } from '../backend/yt-dlp.js';
+import type { SubprocessRunner } from '../backend/yt-dlp.js';
 import { ConfigError, loadConfig } from '../config/index.js';
 import type { Config, ConfigInput } from '../config/index.js';
 import type { SpotifyClient } from '../spotify/index.js';
@@ -114,6 +116,80 @@ export interface CheckSpotifyOptions {
   /** Number of sample tracks to fetch. Default: 2. */
   sampleSize?: number;
 }
+
+// ---------------------------------------------------------------------------
+// Binary checks — yt-dlp and ffmpeg
+// ---------------------------------------------------------------------------
+
+export interface CheckBinaryOptions {
+  /** Injectable subprocess runner — defaults to the real execFile-based runner. */
+  runner?: SubprocessRunner;
+}
+
+const YTDLP_INSTALL_INSTRUCTIONS = [
+  'not found on PATH',
+  'Install:  brew install yt-dlp              (macOS / Homebrew)',
+  '          pipx install yt-dlp              (cross-platform, requires pipx)',
+  '          pip install yt-dlp               (cross-platform, requires pip)',
+  '          https://github.com/yt-dlp/yt-dlp#installation',
+].join('\n');
+
+const FFMPEG_INSTALL_INSTRUCTIONS = [
+  'not found on PATH',
+  'Install:  brew install ffmpeg              (macOS / Homebrew)',
+  '          sudo apt install ffmpeg          (Debian / Ubuntu)',
+  '          https://ffmpeg.org/download.html',
+].join('\n');
+
+/**
+ * Verify that yt-dlp is present on PATH and report its version.
+ *
+ * Returns ok=false with platform-aware install instructions when missing.
+ * Never throws — all errors are captured as ok=false CheckResult.
+ */
+export async function checkYtDlp(opts?: CheckBinaryOptions): Promise<CheckResult> {
+  const versionResult = await getYtDlpVersion(opts?.runner);
+  if (versionResult.available) {
+    return {
+      name: 'yt-dlp',
+      ok: true,
+      detail: versionResult.version,
+      data: { version: versionResult.version },
+    };
+  }
+  return {
+    name: 'yt-dlp',
+    ok: false,
+    detail: YTDLP_INSTALL_INSTRUCTIONS,
+  };
+}
+
+/**
+ * Verify that ffmpeg is present on PATH and report its version.
+ *
+ * Returns ok=false with platform-aware install instructions when missing.
+ * Never throws — all errors are captured as ok=false CheckResult.
+ */
+export async function checkFfmpeg(opts?: CheckBinaryOptions): Promise<CheckResult> {
+  const versionResult = await getFfmpegVersion(opts?.runner);
+  if (versionResult.available) {
+    return {
+      name: 'ffmpeg',
+      ok: true,
+      detail: versionResult.version,
+      data: { version: versionResult.version },
+    };
+  }
+  return {
+    name: 'ffmpeg',
+    ok: false,
+    detail: FFMPEG_INSTALL_INSTRUCTIONS,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Spotify connectivity check
+// ---------------------------------------------------------------------------
 
 /**
  * Verify live Spotify connectivity:

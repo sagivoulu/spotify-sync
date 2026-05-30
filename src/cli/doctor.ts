@@ -54,6 +54,9 @@ export async function runDoctorCommand(options: RunDoctorCommandOptions): Promis
           for (let i = 0; i < sampleTracks.length; i++) {
             process.stdout.write(`  ${i + 1}. ${sampleTracks[i]}\n`);
           }
+        } else if (typeof check.data?.version !== 'undefined') {
+          // Binary check (yt-dlp, ffmpeg) — show the detected version.
+          process.stdout.write(`${icon} ${check.name} — ${check.detail}\n`);
         } else {
           // Simple pass — icon + name only (detail is boilerplate, not useful on success).
           process.stdout.write(`${icon} ${check.name}\n`);

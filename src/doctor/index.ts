@@ -1,18 +1,19 @@
 // ---------------------------------------------------------------------------
-// runDoctor — orchestrates all health checks in dependency order.
+// runDoctor — orchestrates all health checks.
 //
-// Check order: Config → Auth → Spotify.
-// If Config fails, Auth and Spotify are reported as skipped (they can't run
-// without a valid config). If Auth fails, Spotify is skipped (no token).
+// Check order:
+//   Config → Auth → Spotify   (auth/Spotify skip when prerequisites fail)
+//   yt-dlp → ffmpeg            (always run, independent of config/auth)
 //
-// The Spotify client is injectable for tests; production builds it from disk
-// via createSpotifyClientFromDisk.
+// The yt-dlp and ffmpeg checks are independent of the Spotify/config chain
+// because the binaries are needed for downloads regardless of auth state.
 // ---------------------------------------------------------------------------
 
+import type { SubprocessRunner } from '../backend/yt-dlp.js';
 import type { ConfigInput } from '../config/index.js';
 import type { SpotifyClient } from '../spotify/index.js';
 import { createSpotifyClientFromDisk } from '../spotify/index.js';
-import { checkAuth, checkConfig, checkSpotify } from './checks.js';
+import { checkAuth, checkConfig, checkFfmpeg, checkSpotify, checkYtDlp } from './checks.js';
 import type { CheckResult } from './types.js';
 
 export type { CheckResult } from './types.js';
@@ -34,6 +35,12 @@ export interface RunDoctorOptions {
   fetchFn?: typeof fetch;
   /** Number of sample tracks for the Spotify check. Default: 2. */
   sampleSize?: number;
+  /**
+   * Injectable subprocess runner for the yt-dlp and ffmpeg binary checks.
+   * When omitted, the real execFile-based runner is used.
+   * Tests inject a fake runner to avoid requiring binaries in the test environment.
+   */
+  binaryRunner?: SubprocessRunner;
 }
 
 export interface RunDoctorResult {
@@ -49,54 +56,49 @@ export interface RunDoctorResult {
  * CheckResult.ok = false. Only unexpected I/O errors propagate.
  */
 export async function runDoctor(opts: RunDoctorOptions = {}): Promise<RunDoctorResult> {
-  const { cliFlags, env, spotifyClient, fetchFn, sampleSize = 2 } = opts;
+  const { cliFlags, env, spotifyClient, fetchFn, sampleSize = 2, binaryRunner } = opts;
   const results: CheckResult[] = [];
 
   // --- Check 1: Config ---
   const { result: configResult, config } = checkConfig({ cliFlags, env });
   results.push(configResult);
 
-  if (!configResult.ok) {
-    // Auth and Spotify both require a valid config.
+  if (configResult.ok && config !== null) {
+    // --- Check 2: Auth (requires valid config) ---
+    const { result: authResult } = checkAuth({ env });
+    results.push(authResult);
+
+    if (authResult.ok) {
+      // --- Check 3: Spotify connectivity (requires valid auth) ---
+      const client =
+        spotifyClient ??
+        createSpotifyClientFromDisk({
+          clientId: config.spotify.client_id,
+          fetchFn,
+          env,
+        });
+
+      const spotifyResult = await checkSpotify({
+        client,
+        playlistUrl: config.spotify.playlist_url,
+        sampleSize,
+      });
+      results.push(spotifyResult);
+    } else {
+      results.push({ name: 'Spotify', ok: false, detail: 'skipped — Auth check failed' });
+    }
+  } else {
+    // Config failed — Auth and Spotify cannot run.
     results.push({ name: 'Auth', ok: false, detail: 'skipped — Config check failed' });
     results.push({ name: 'Spotify', ok: false, detail: 'skipped — Config check failed' });
-    return { results, ok: false };
   }
 
-  // --- Check 2: Auth ---
-  const { result: authResult } = checkAuth({ env });
-  results.push(authResult);
+  // --- Check 4 & 5: Binary checks — always run, independent of config/auth ---
+  const ytDlpResult = await checkYtDlp({ runner: binaryRunner });
+  results.push(ytDlpResult);
 
-  if (!authResult.ok) {
-    // Spotify check requires a valid token.
-    results.push({ name: 'Spotify', ok: false, detail: 'skipped — Auth check failed' });
-    return { results, ok: false };
-  }
-
-  // --- Check 3: Spotify connectivity ---
-  // config is guaranteed non-null here because we returned early when configResult.ok
-  // was false. TypeScript can't narrow through result.ok, so we use a guard.
-  if (config === null) {
-    // Unreachable: configResult.ok=true always means config is non-null.
-    results.push({ name: 'Spotify', ok: false, detail: 'skipped — Config check failed' });
-    return { results, ok: false };
-  }
-
-  // Use the injected client (tests) or build one from disk (production).
-  const client =
-    spotifyClient ??
-    createSpotifyClientFromDisk({
-      clientId: config.spotify.client_id,
-      fetchFn,
-      env,
-    });
-
-  const spotifyResult = await checkSpotify({
-    client,
-    playlistUrl: config.spotify.playlist_url,
-    sampleSize,
-  });
-  results.push(spotifyResult);
+  const ffmpegResult = await checkFfmpeg({ runner: binaryRunner });
+  results.push(ffmpegResult);
 
   const ok = results.every((r) => r.ok);
   return { results, ok };
