@@ -63,7 +63,7 @@ const FAKE_CLIENT: SpotifyClient = {
  * Injected via binaryRunner so tests don't require the real binaries on PATH.
  */
 const FAKE_BINARY_RUNNER: SubprocessRunner = async (binary, _args) => {
-  if (binary === 'yt-dlp') return { stdout: '2024.12.13', stderr: '', code: 0 };
+  if (binary === 'yt-dlp') return { stdout: '2026.03.17', stderr: '', code: 0 };
   if (binary === 'ffmpeg')
     return {
       stdout: 'ffmpeg version 6.0 Copyright (c) 2000-2023 the FFmpeg developers',
@@ -291,7 +291,7 @@ describe('runDoctor', () => {
     const ffmpeg = result.results.find((r) => r.name === 'ffmpeg');
 
     expect(ytDlp?.ok).toBe(true);
-    expect(ytDlp?.data?.version).toBe('2024.12.13');
+    expect(ytDlp?.data?.version).toBe('2026.03.17');
 
     expect(ffmpeg?.ok).toBe(true);
     expect(ffmpeg?.data?.version).toBe('6.0');

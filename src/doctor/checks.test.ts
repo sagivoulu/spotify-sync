@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { MINIMUM_YTDLP_VERSION } from '../backend/yt-dlp.js';
 import type { SubprocessRunner } from '../backend/yt-dlp.js';
 import type { SpotifyClient, SpotifyTrack } from '../spotify/index.js';
 import type { StoredToken } from '../spotify/token-store.js';
@@ -318,15 +319,42 @@ function makeRunner(
 }
 
 describe('checkYtDlp', () => {
-  it('returns ok=true with version in detail and data.version when yt-dlp is found', async () => {
+  // A version string known to be above MINIMUM_YTDLP_VERSION
+  const FRESH_VERSION = '2026.03.17';
+  // A version string known to be below MINIMUM_YTDLP_VERSION
+  const STALE_VERSION = '2025.08.27';
+
+  it('returns ok=true with version in detail and data.version when yt-dlp is fresh enough', async () => {
     const result = await checkYtDlp({
-      runner: makeRunner({ stdout: '2024.12.13\n', stderr: '', code: 0 }),
+      runner: makeRunner({ stdout: `${FRESH_VERSION}\n`, stderr: '', code: 0 }),
     });
 
     expect(result.ok).toBe(true);
     expect(result.name).toBe('yt-dlp');
-    expect(result.detail).toBe('2024.12.13');
-    expect(result.data?.version).toBe('2024.12.13');
+    expect(result.detail).toBe(FRESH_VERSION);
+    expect(result.data?.version).toBe(FRESH_VERSION);
+  });
+
+  it('returns ok=false with upgrade instructions when yt-dlp is below minimum tested version', async () => {
+    const result = await checkYtDlp({
+      runner: makeRunner({ stdout: `${STALE_VERSION}\n`, stderr: '', code: 0 }),
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.name).toBe('yt-dlp');
+    expect(result.detail).toContain(STALE_VERSION);
+    expect(result.detail).toContain(MINIMUM_YTDLP_VERSION);
+    expect(result.detail).toMatch(/too old/i);
+    expect(result.detail).toMatch(/brew upgrade yt-dlp/);
+    expect(result.data?.versionTooOld).toBe(true);
+    expect(result.data?.minimumTestedVersion).toBe(MINIMUM_YTDLP_VERSION);
+  });
+
+  it('version exactly at minimum passes', async () => {
+    const result = await checkYtDlp({
+      runner: makeRunner({ stdout: `${MINIMUM_YTDLP_VERSION}\n`, stderr: '', code: 0 }),
+    });
+    expect(result.ok).toBe(true);
   });
 
   it('returns ok=false with install instructions when yt-dlp is not found (ENOENT)', async () => {

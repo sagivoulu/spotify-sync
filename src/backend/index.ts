@@ -14,7 +14,7 @@ export type {
 } from './types.js';
 export { BackendError } from './types.js';
 export type { SubprocessRunner, VersionResult } from './yt-dlp.js';
-export { getFfmpegVersion, getYtDlpVersion } from './yt-dlp.js';
+export { getFfmpegVersion, getYtDlpVersion, MINIMUM_YTDLP_VERSION } from './yt-dlp.js';
 
 import type { Config } from '../config/index.js';
 import type { AudioFormat, DownloadBackend } from './types.js';

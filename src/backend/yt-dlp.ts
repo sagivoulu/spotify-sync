@@ -132,6 +132,18 @@ function parseCandidate(json: YtDlpDumpJson): Candidate {
 // Version probes — exported for src/doctor/checks.ts
 // ---------------------------------------------------------------------------
 
+/**
+ * Minimum yt-dlp version known to work reliably with YouTube.
+ *
+ * Older versions hit YouTube's bot detection, causing downloads to fail with
+ * "Sign in to confirm you're not a bot" rather than a clear error. This
+ * threshold was established by testing in May 2026.
+ *
+ * Format: YYYY.MM.DD (yt-dlp's date-based versioning). String comparison
+ * is safe because yt-dlp zero-pads month and day.
+ */
+export const MINIMUM_YTDLP_VERSION = '2026.01.01';
+
 export type VersionResult =
   | { available: true; version: string }
   | { available: false; error: string };
