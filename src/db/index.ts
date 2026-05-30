@@ -3,6 +3,28 @@ import type { Config } from '../config/schema.js';
 import { openDatabase } from './connection.js';
 import { runMigrations } from './migrations.js';
 
+export type {
+  DownloadedTrackRow,
+  MarkDownloadedParams,
+  MarkFailedParams,
+  TrackRow,
+  UpsertTrackParams,
+} from './tracks.js';
+export {
+  incrementAttempts,
+  listDownloadedTracks,
+  listPendingTracks,
+  markDownloaded,
+  markFailed,
+  markRemovedFromSource,
+  resetPendingAttempts,
+  resetToPending,
+  upsertTrack,
+} from './tracks.js';
+
+export type { FinalizeSyncRunParams, InsertSyncRunParams } from './sync-runs.js';
+export { finalizeSyncRun, insertSyncRun } from './sync-runs.js';
+
 // ---------------------------------------------------------------------------
 // Public DB API
 //

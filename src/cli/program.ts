@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { runAuthCommand } from './auth.js';
 import { runDoctorCommand } from './doctor.js';
+import { runSyncCommand } from './sync.js';
 
 // Version is hardcoded for v1 skeleton; make dynamic in a follow-up.
 const VERSION = '0.1.0';
@@ -81,8 +82,16 @@ export function buildProgram(): Command {
     .command('sync')
     .description('Fetch playlist tracks and download any that are pending')
     .option('--json', 'Output as JSON')
-    .action(() => {
-      console.log('sync: not yet implemented');
+    .action(async function (this: Command) {
+      const opts = this.optsWithGlobals<{
+        json: boolean;
+        libraryPath?: string;
+        dbPath?: string;
+      }>();
+      await runSyncCommand({
+        json: opts.json ?? false,
+        globals: { libraryPath: opts.libraryPath, dbPath: opts.dbPath },
+      });
     });
 
   // ---------------------------------------------------------------------------
