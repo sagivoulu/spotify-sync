@@ -49,6 +49,22 @@ interface SpotifyApiPlaylistItemsPage {
   limit: number;
 }
 
+/**
+ * Shape returned by GET /playlists/{id}.
+ *
+ * Spotify's 2024 API rename: the top-level `tracks` paging object on a
+ * playlist is now called `items` (matching the /items endpoint rename).
+ * The items paging object embeds the first page of tracks, so
+ * fetchPlaylistSummary only needs this one call.
+ */
+interface SpotifyApiPlaylistMetadata {
+  name: string;
+  items: {
+    total: number;
+    items: SpotifyApiPlaylistItem[];
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Spotify client — playlist fetch with transparent token refresh.
 //
@@ -94,6 +110,22 @@ export interface SpotifyTrack {
   addedAt: string;
 }
 
+/**
+ * A lightweight playlist summary — name, total track count, and a small
+ * sample of tracks. Used by `fetchPlaylistSummary` for the doctor health check.
+ */
+export interface PlaylistSummary {
+  /** Playlist display name. */
+  name: string;
+  /** Total number of tracks in the playlist (may include local/removed). */
+  trackCount: number;
+  /**
+   * A sample of the first N playable tracks (non-local, non-removed, type=track).
+   * May be shorter than `sampleSize` if the playlist has fewer eligible tracks.
+   */
+  tracks: SpotifyTrack[];
+}
+
 export interface SpotifyClient {
   /**
    * Fetch all tracks in a Spotify playlist, handling pagination and token
@@ -102,6 +134,19 @@ export interface SpotifyClient {
    * @param playlistId  Spotify playlist ID (not URL).
    */
   fetchPlaylistTracks(playlistId: string): Promise<SpotifyTrack[]>;
+
+  /**
+   * Fetch a lightweight playlist summary: name, total track count, and a
+   * small sample of the first `sampleSize` playable tracks.
+   *
+   * Makes two API calls (metadata + one items page) instead of paginating the
+   * full playlist — suitable for health checks that only need a quick sanity
+   * check, not the full track list.
+   *
+   * @param playlistId  Spotify playlist ID (not URL).
+   * @param sampleSize  Maximum number of sample tracks to return.
+   */
+  fetchPlaylistSummary(playlistId: string, sampleSize: number): Promise<PlaylistSummary>;
 }
 
 export interface SpotifyClientDeps {
@@ -124,6 +169,38 @@ export interface SpotifyClientDeps {
    * Tests inject a fixed timestamp to exercise expiry logic without real waits.
    */
   now?: () => number;
+}
+
+// ---------------------------------------------------------------------------
+// Item mapping helper (module-level — shared by fetchPlaylistTracks and
+// fetchPlaylistSummary to keep filtering and field mapping in one place).
+// ---------------------------------------------------------------------------
+
+/**
+ * Map a raw Spotify playlist item to a SpotifyTrack, or null if the item
+ * should be skipped (local file, null/removed track, or non-track type).
+ */
+function mapPlaylistItem(item: SpotifyApiPlaylistItem): SpotifyTrack | null {
+  if (item.is_local || item.item == null || item.item.type !== 'track') {
+    return null;
+  }
+  const track = item.item;
+  return {
+    id: track.id,
+    title: track.name,
+    artists: track.artists.map((a) => a.name),
+    album: {
+      name: track.album.name,
+      images: track.album.images.map((img) => ({
+        url: img.url,
+        width: img.width,
+        height: img.height,
+      })),
+    },
+    releaseYear: Number.parseInt(track.album.release_date.slice(0, 4), 10),
+    durationMs: track.duration_ms,
+    addedAt: item.added_at,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -244,30 +321,10 @@ export function createSpotifyClient(deps: SpotifyClientDeps): SpotifyClient {
         );
 
         for (const item of page.items) {
-          // Skip local files (no Spotify ID), nulled-out removed tracks, and
-          // non-track items (podcast episodes that may appear in playlists).
-          if (item.is_local || item.item == null || item.item.type !== 'track') {
-            continue;
+          const track = mapPlaylistItem(item);
+          if (track !== null) {
+            tracks.push(track);
           }
-
-          const track = item.item;
-
-          tracks.push({
-            id: track.id,
-            title: track.name,
-            artists: track.artists.map((a) => a.name),
-            album: {
-              name: track.album.name,
-              images: track.album.images.map((img) => ({
-                url: img.url,
-                width: img.width,
-                height: img.height,
-              })),
-            },
-            releaseYear: Number.parseInt(track.album.release_date.slice(0, 4), 10),
-            durationMs: track.duration_ms,
-            addedAt: item.added_at,
-          });
         }
 
         if (page.next === null) break;
@@ -275,6 +332,33 @@ export function createSpotifyClient(deps: SpotifyClientDeps): SpotifyClient {
       }
 
       return tracks;
+    },
+
+    async fetchPlaylistSummary(playlistId: string, sampleSize: number): Promise<PlaylistSummary> {
+      // GET /playlists/{id} returns the playlist object including the first
+      // page of items (up to 100) embedded in metadata.items.items.
+      // Spotify's 2024 API renamed the top-level `tracks` paging object to
+      // `items`, so we read metadata.items.total and metadata.items.items.
+      // This avoids a second API call — all we need is already here.
+      const metadata = await api.makeRequest<SpotifyApiPlaylistMetadata>(
+        'GET',
+        `playlists/${playlistId}`,
+      );
+
+      const tracks: SpotifyTrack[] = [];
+      for (const item of metadata.items.items) {
+        const track = mapPlaylistItem(item);
+        if (track !== null) {
+          tracks.push(track);
+          if (tracks.length >= sampleSize) break;
+        }
+      }
+
+      return {
+        name: metadata.name,
+        trackCount: metadata.items.total,
+        tracks,
+      };
     },
   };
 }

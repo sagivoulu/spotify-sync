@@ -5,8 +5,10 @@ describe('buildProgram', () => {
   it('registers all expected subcommands', () => {
     const program = buildProgram();
     const names = program.commands.map((cmd) => cmd.name());
-    expect(names).toEqual(expect.arrayContaining(['auth', 'sync', 'status', 'prune', 'import']));
-    expect(names).toHaveLength(5);
+    expect(names).toEqual(
+      expect.arrayContaining(['auth', 'doctor', 'sync', 'status', 'prune', 'import']),
+    );
+    expect(names).toHaveLength(6);
   });
 
   it('sets the correct program name', () => {
