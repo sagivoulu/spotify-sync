@@ -25,6 +25,7 @@ function makeTrackItem(overrides?: {
   releaseDate?: string;
   durationMs?: number;
   addedAt?: string;
+  trackNumber?: number;
   type?: string;
   isLocal?: boolean;
   trackNull?: boolean;
@@ -37,6 +38,7 @@ function makeTrackItem(overrides?: {
     releaseDate = '2020-06-15',
     durationMs = 210000,
     addedAt = '2024-01-01T00:00:00Z',
+    trackNumber = 1,
     type = 'track',
     isLocal = false,
     trackNull = false,
@@ -92,7 +94,7 @@ function makeTrackItem(overrides?: {
           popularity: 80,
           preview_url: null,
           track: true,
-          track_number: 1,
+          track_number: trackNumber,
           uri: '',
         },
   };
@@ -144,6 +146,7 @@ describe('fetchPlaylistTracks — field mapping', () => {
       releaseDate: '2019-03-25',
       durationMs: 180000,
       addedAt: '2024-06-01T12:00:00Z',
+      trackNumber: 7,
     });
     const page = makePage([item]);
 
@@ -161,6 +164,7 @@ describe('fetchPlaylistTracks — field mapping', () => {
     expect(track.id).toBe('track-abc');
     expect(track.title).toBe('My Song');
     expect(track.artists).toEqual(['Alice', 'Bob']);
+    expect(track.album.id).toBe('album-id');
     expect(track.album.name).toBe('Great Album');
     expect(track.album.images).toHaveLength(2);
     expect(track.album.images[0]).toMatchObject({
@@ -169,6 +173,7 @@ describe('fetchPlaylistTracks — field mapping', () => {
       height: 640,
     });
     expect(track.releaseYear).toBe(2019);
+    expect(track.trackNumber).toBe(7);
     expect(track.durationMs).toBe(180000);
     expect(track.addedAt).toBe('2024-06-01T12:00:00Z');
   });

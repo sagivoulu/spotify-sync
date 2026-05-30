@@ -41,6 +41,7 @@ Thumbs.db
 
 # Music & media files (downloads live outside the repo)
 *.mp3
+!src/tagging/fixtures/*.mp3
 *.flac
 *.wav
 *.m4a
