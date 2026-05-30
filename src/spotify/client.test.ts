@@ -515,7 +515,7 @@ describe('fetchPlaylistSummary — basic behaviour', () => {
     expect(summary.tracks[0].id).toBe('real');
   });
 
-  it('makes the metadata call with the fields query parameter', async () => {
+  it('makes a separate metadata call (without /items) and an items call', async () => {
     const capturedUrls: string[] = [];
     const metadata = makePlaylistMetadata('Test', 5);
     const itemsPage = makePage([makeTrackItem()]);
@@ -538,10 +538,12 @@ describe('fetchPlaylistSummary — basic behaviour', () => {
     const client = createSpotifyClient({ clientId: 'cid', token: VALID_TOKEN, fetchFn: fakeFetch });
     await client.fetchPlaylistSummary('pid', 2);
 
+    // Should have made exactly two calls: one metadata call and one items call.
+    expect(capturedUrls).toHaveLength(2);
     const metadataUrl = capturedUrls.find((u) => !u.includes('/items'));
+    const itemsUrl = capturedUrls.find((u) => u.includes('/items'));
     expect(metadataUrl).toBeDefined();
-    expect(metadataUrl).toContain('fields=');
-    expect(metadataUrl).toContain('tracks');
+    expect(itemsUrl).toBeDefined();
   });
 });
 

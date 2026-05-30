@@ -326,10 +326,16 @@ export function createSpotifyClient(deps: SpotifyClientDeps): SpotifyClient {
 
     async fetchPlaylistSummary(playlistId: string, sampleSize: number): Promise<PlaylistSummary> {
       // Step 1: Fetch playlist metadata (name + total track count).
-      // The fields filter keeps the response payload small.
+      // Note: do NOT use the ?fields= filter here. The parenthesis syntax
+      // Spotify uses for nested field filters (e.g. tracks(total)) gets
+      // URL-encoded by api.makeRequest as tracks%28total%29, which Spotify
+      // doesn't recognise as a field filter — it omits `tracks` from the
+      // response entirely, causing metadata.tracks to be undefined.
+      // The unfiltered response is small (first 20 items by default) and
+      // provides tracks.total reliably.
       const metadata = await api.makeRequest<SpotifyApiPlaylistMetadata>(
         'GET',
-        `playlists/${playlistId}?fields=name,tracks(total)`,
+        `playlists/${playlistId}`,
       );
 
       // Step 2: Fetch a small page of items for the sample tracks.
