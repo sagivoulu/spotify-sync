@@ -30,6 +30,7 @@ interface SpotifyApiTrackItem {
   type: string;
   duration_ms: number;
   is_local: boolean;
+  track_number: number;
   artists: SpotifyApiArtist[];
   album: SpotifyApiAlbum;
 }
@@ -99,11 +100,14 @@ export interface SpotifyTrack {
    * consume album art URLs directly from the track without an extra API call.
    */
   album: {
+    id: string;
     name: string;
     images: { url: string; width: number; height: number }[];
   };
   /** Four-digit release year parsed from album.release_date. */
   releaseYear: number;
+  /** Track number within the Spotify album, if provided. */
+  trackNumber?: number;
   /** Track duration in milliseconds. */
   durationMs: number;
   /** ISO 8601 timestamp when the track was added to the playlist. */
@@ -190,6 +194,7 @@ function mapPlaylistItem(item: SpotifyApiPlaylistItem): SpotifyTrack | null {
     title: track.name,
     artists: track.artists.map((a) => a.name),
     album: {
+      id: track.album.id,
       name: track.album.name,
       images: track.album.images.map((img) => ({
         url: img.url,
@@ -198,6 +203,7 @@ function mapPlaylistItem(item: SpotifyApiPlaylistItem): SpotifyTrack | null {
       })),
     },
     releaseYear: Number.parseInt(track.album.release_date.slice(0, 4), 10),
+    trackNumber: track.track_number,
     durationMs: track.duration_ms,
     addedAt: item.added_at,
   };

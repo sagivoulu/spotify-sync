@@ -33,7 +33,7 @@ Given a Spotify playlist URL, download every track in it as a tagged MP3 to a lo
   - Spotify Web API client (e.g. `@spotify/web-api-ts-sdk`)
   - `yt-dlp` invoked as a subprocess (binary must be on PATH; tool checks at startup)
   - `better-sqlite3` for the state DB
-  - `music-metadata` / `node-id3` for ID3 read/write (TBD during implementation)
+  - `node-id3` for ID3 write/read (chosen in WES-12: direct MP3 ID3 writes, APIC support, custom `TXXX` frames, and a small dependency surface)
   - A CLI framework — `commander` or similar
   - Each new dependency gets a one-line rationale in the commit that adds it (per `AGENTS.md` security guidance).
 
