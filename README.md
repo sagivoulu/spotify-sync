@@ -45,7 +45,8 @@ spotify-sync authenticates with Spotify on your behalf via OAuth 2.0 (PKCE flow)
    - **App name:** `spotify-sync`
    - **App description:** `CLI tool to sync a Spotify playlist to a local music library`
    - **Website:** leave blank
-   - **API/SDK:** select *Web API* only
+   - **Which API/SDKs are you planning to use?** select *Web API* only
+   - Check **I understand and agree with Spotify's Developer Terms of Service and Design Guidelines**
 
    Under *Redirect URIs*, add: **`http://127.0.0.1:8888/callback`**
 

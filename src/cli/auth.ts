@@ -33,10 +33,11 @@ To use spotify-sync you need to register a Spotify developer app:
   1. Go to https://developer.spotify.com/dashboard and click "Create app".
 
      Suggested values:
-       App name:        spotify-sync
-       App description: CLI tool to sync a Spotify playlist to a local music library
-       Website:         (leave blank)
-       API/SDK:         Web API  ← select this one only
+       App name:                                  spotify-sync
+       App description:                           CLI tool to sync a Spotify playlist to a local music library
+       Website:                                   (leave blank)
+       Which API/SDKs are you planning to use?    Web API  ← select this one only
+       ☑ I understand and agree with Spotify's Developer Terms of Service and Design Guidelines
 
   2. In the app's Settings → Redirect URIs, add:
        http://127.0.0.1:${port}/callback
