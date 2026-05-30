@@ -4,13 +4,7 @@ import { join } from 'node:path';
 import type Database from 'better-sqlite3';
 import pLimit from 'p-limit';
 import type { DownloadBackend } from '../backend/index.js';
-import {
-  BackendError,
-  configToAudioFormat,
-  createBackendFromConfig,
-  getFfmpegVersion,
-  getYtDlpVersion,
-} from '../backend/index.js';
+import { BackendError, configToAudioFormat, createBackendFromConfig } from '../backend/index.js';
 import type { SubprocessRunner } from '../backend/index.js';
 import type { Config, ConfigInput } from '../config/index.js';
 import { loadConfig } from '../config/index.js';
@@ -28,6 +22,7 @@ import {
   resetToPending,
   upsertTrack,
 } from '../db/index.js';
+import { checkFfmpeg, checkYtDlp } from '../doctor/checks.js';
 import { placeDownloadedFile, resolveRelativePath } from '../library/index.js';
 import type { SpotifyClient, SpotifyTrack } from '../spotify/index.js';
 import { createSpotifyClientFromDisk, parsePlaylistId } from '../spotify/index.js';
@@ -173,24 +168,30 @@ export async function runSync(opts: RunSyncOptions = {}): Promise<SyncResult> {
     throw new FatalSyncError(`Configuration error: ${(err as Error).message}`, err);
   }
 
+  // Binary probe runs BEFORE any DB writes or Spotify calls so a missing/outdated
+  // binary surfaces immediately with a clear message and exit code 2.
+  //
+  // The probe is skipped only when a backend is injected without a binaryRunner —
+  // that is the test-convenience path (see RunSyncOptions JSDoc above). When a
+  // binaryRunner is explicitly provided alongside an injected backend the probe
+  // still runs so tests can exercise the "binary absent → exit 2" path.
+  if (opts.backend === undefined || opts.binaryRunner !== undefined) {
+    await probeBinaries(opts.binaryRunner);
+  }
+
   const db = opts.db ?? initDb(config);
 
   // Build or validate the download backend.
   let backend: DownloadBackend;
   if (opts.backend !== undefined) {
-    // Injected backend (tests). Run binary probe only if binaryRunner is also injected.
     backend = opts.backend;
-    if (opts.binaryRunner !== undefined) {
-      await probeBinaries(opts.binaryRunner);
-    }
   } else {
-    // Production path: build from config and always probe binaries.
+    // Production path: probe already ran above; just build from config.
     try {
       backend = createBackendFromConfig(config);
     } catch (err) {
       throw new FatalSyncError(`Backend configuration error: ${(err as Error).message}`, err);
     }
-    await probeBinaries(opts.binaryRunner);
   }
 
   // Build Spotify client.
@@ -455,20 +456,19 @@ export async function runSync(opts: RunSyncOptions = {}): Promise<SyncResult> {
 // ---------------------------------------------------------------------------
 
 /**
- * Probe yt-dlp and ffmpeg availability. Throws FatalSyncError if either is missing.
- * When `runner` is undefined, the real defaultRunner is used via getYtDlpVersion/getFfmpegVersion.
+ * Probe yt-dlp and ffmpeg via the same checks that `doctor` runs, so sync surfaces
+ * the same install/upgrade instructions as `doctor` when something is wrong.
+ *
+ * Throws FatalSyncError (→ exit code 2) when either binary is missing or outdated.
+ * When `runner` is undefined, the real execFile-based runner is used.
  */
 async function probeBinaries(runner?: SubprocessRunner): Promise<void> {
-  const [ytDlp, ffmpeg] = await Promise.all([getYtDlpVersion(runner), getFfmpegVersion(runner)]);
+  const [ytDlp, ffmpeg] = await Promise.all([checkYtDlp({ runner }), checkFfmpeg({ runner })]);
 
-  if (!ytDlp.available) {
-    throw new FatalSyncError(
-      `yt-dlp is not available: ${ytDlp.error}. Install it with "brew install yt-dlp" or from https://github.com/yt-dlp/yt-dlp.`,
-    );
+  if (!ytDlp.ok) {
+    throw new FatalSyncError(`${ytDlp.name} — ${ytDlp.detail}`);
   }
-  if (!ffmpeg.available) {
-    throw new FatalSyncError(
-      `ffmpeg is not available: ${ffmpeg.error}. Install it with "brew install ffmpeg".`,
-    );
+  if (!ffmpeg.ok) {
+    throw new FatalSyncError(`${ffmpeg.name} — ${ffmpeg.detail}`);
   }
 }
