@@ -413,34 +413,44 @@ describe('fetchPlaylistTracks — proactive token refresh', () => {
 // fetchPlaylistSummary — playlist metadata + sample tracks
 // ---------------------------------------------------------------------------
 
-/** Minimal playlist metadata response for GET /playlists/{id}?fields=name,tracks(total) */
-function makePlaylistMetadata(name: string, total: number): object {
-  return { name, tracks: { total } };
+/**
+ * Minimal playlist metadata response for GET /playlists/{id}.
+ * Mirrors the 2024 Spotify API shape: top-level `items` paging object
+ * (renamed from `tracks`) with embedded first-page items array.
+ */
+function makePlaylistMetadata(
+  name: string,
+  total: number,
+  items: ReturnType<typeof makeTrackItem>[] = [],
+): object {
+  return {
+    name,
+    items: {
+      href: 'https://api.spotify.com/v1/playlists/pid/items?offset=0&limit=100',
+      items,
+      limit: 100,
+      next: null,
+      offset: 0,
+      previous: null,
+      total,
+    },
+  };
 }
 
 describe('fetchPlaylistSummary — basic behaviour', () => {
   it('returns name, trackCount, and sample tracks', async () => {
-    const tracks = [
+    const trackItems = [
       makeTrackItem({ id: 't1', name: 'Song One', artists: ['Alice'] }),
       makeTrackItem({ id: 't2', name: 'Song Two', artists: ['Bob', 'Carol'] }),
     ];
-    const metadata = makePlaylistMetadata('My Playlist', 42);
-    const itemsPage = makePage(tracks);
+    // Items are embedded in the playlist metadata response (2024 API shape).
+    const metadata = makePlaylistMetadata('My Playlist', 42, trackItems);
 
-    const fakeFetch = async (url: string | URL | Request): Promise<Response> => {
-      const urlStr = String(url);
-      // Metadata call (no /items in the path)
-      if (urlStr.includes('/items')) {
-        return new Response(JSON.stringify(itemsPage), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-      return new Response(JSON.stringify(metadata), {
+    const fakeFetch = async (): Promise<Response> =>
+      new Response(JSON.stringify(metadata), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       });
-    };
 
     const client = createSpotifyClient({ clientId: 'cid', token: VALID_TOKEN, fetchFn: fakeFetch });
     const summary = await client.fetchPlaylistSummary('playlist-id', 2);
@@ -455,30 +465,23 @@ describe('fetchPlaylistSummary — basic behaviour', () => {
     expect(summary.tracks[1].artists).toEqual(['Bob', 'Carol']);
   });
 
-  it('truncates sample to sampleSize even if the page has more', async () => {
-    const tracks = [
+  it('truncates sample to sampleSize even if the embedded items has more', async () => {
+    const trackItems = [
       makeTrackItem({ id: 't1' }),
       makeTrackItem({ id: 't2' }),
       makeTrackItem({ id: 't3' }),
     ];
-    const metadata = makePlaylistMetadata('Big Playlist', 100);
-    const itemsPage = makePage(tracks);
+    const metadata = makePlaylistMetadata('Big Playlist', 100, trackItems);
 
-    const fakeFetch = async (url: string | URL | Request): Promise<Response> => {
-      const urlStr = String(url);
-      if (urlStr.includes('/items')) {
-        return new Response(JSON.stringify(itemsPage), {
+    const client = createSpotifyClient({
+      clientId: 'cid',
+      token: VALID_TOKEN,
+      fetchFn: async () =>
+        new Response(JSON.stringify(metadata), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
-        });
-      }
-      return new Response(JSON.stringify(metadata), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    };
-
-    const client = createSpotifyClient({ clientId: 'cid', token: VALID_TOKEN, fetchFn: fakeFetch });
+        }),
+    });
     const summary = await client.fetchPlaylistSummary('pid', 2);
 
     expect(summary.tracks).toHaveLength(2);
@@ -486,49 +489,34 @@ describe('fetchPlaylistSummary — basic behaviour', () => {
   });
 
   it('skips local and null items in the sample', async () => {
-    const items = [
+    const trackItems = [
       makeTrackItem({ id: 'local', isLocal: true }),
       makeTrackItem({ id: 'removed', trackNull: true }),
       makeTrackItem({ id: 'real', name: 'Real Song' }),
     ];
-    const metadata = makePlaylistMetadata('Playlist', 10);
-    const itemsPage = makePage(items);
+    const metadata = makePlaylistMetadata('Playlist', 10, trackItems);
 
-    const fakeFetch = async (url: string | URL | Request): Promise<Response> => {
-      const urlStr = String(url);
-      if (urlStr.includes('/items')) {
-        return new Response(JSON.stringify(itemsPage), {
+    const client = createSpotifyClient({
+      clientId: 'cid',
+      token: VALID_TOKEN,
+      fetchFn: async () =>
+        new Response(JSON.stringify(metadata), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
-        });
-      }
-      return new Response(JSON.stringify(metadata), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    };
-
-    const client = createSpotifyClient({ clientId: 'cid', token: VALID_TOKEN, fetchFn: fakeFetch });
+        }),
+    });
     const summary = await client.fetchPlaylistSummary('pid', 5);
 
     expect(summary.tracks).toHaveLength(1);
     expect(summary.tracks[0].id).toBe('real');
   });
 
-  it('makes a separate metadata call (without /items) and an items call', async () => {
+  it('makes a single API call to GET /playlists/{id}', async () => {
     const capturedUrls: string[] = [];
-    const metadata = makePlaylistMetadata('Test', 5);
-    const itemsPage = makePage([makeTrackItem()]);
+    const metadata = makePlaylistMetadata('Test', 5, [makeTrackItem()]);
 
     const fakeFetch = async (url: string | URL | Request): Promise<Response> => {
-      const urlStr = String(url);
-      capturedUrls.push(urlStr);
-      if (urlStr.includes('/items')) {
-        return new Response(JSON.stringify(itemsPage), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
+      capturedUrls.push(String(url));
       return new Response(JSON.stringify(metadata), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -538,12 +526,9 @@ describe('fetchPlaylistSummary — basic behaviour', () => {
     const client = createSpotifyClient({ clientId: 'cid', token: VALID_TOKEN, fetchFn: fakeFetch });
     await client.fetchPlaylistSummary('pid', 2);
 
-    // Should have made exactly two calls: one metadata call and one items call.
-    expect(capturedUrls).toHaveLength(2);
-    const metadataUrl = capturedUrls.find((u) => !u.includes('/items'));
-    const itemsUrl = capturedUrls.find((u) => u.includes('/items'));
-    expect(metadataUrl).toBeDefined();
-    expect(itemsUrl).toBeDefined();
+    // One call only — items are embedded in the playlist metadata response.
+    expect(capturedUrls).toHaveLength(1);
+    expect(capturedUrls[0]).toMatch(/\/playlists\/pid$/);
   });
 });
 

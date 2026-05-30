@@ -49,10 +49,20 @@ interface SpotifyApiPlaylistItemsPage {
   limit: number;
 }
 
-/** Shape returned by GET /playlists/{id}?fields=name,tracks(total). */
+/**
+ * Shape returned by GET /playlists/{id}.
+ *
+ * Spotify's 2024 API rename: the top-level `tracks` paging object on a
+ * playlist is now called `items` (matching the /items endpoint rename).
+ * The items paging object embeds the first page of tracks, so
+ * fetchPlaylistSummary only needs this one call.
+ */
 interface SpotifyApiPlaylistMetadata {
   name: string;
-  tracks: { total: number };
+  items: {
+    total: number;
+    items: SpotifyApiPlaylistItem[];
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -325,29 +335,18 @@ export function createSpotifyClient(deps: SpotifyClientDeps): SpotifyClient {
     },
 
     async fetchPlaylistSummary(playlistId: string, sampleSize: number): Promise<PlaylistSummary> {
-      // Step 1: Fetch playlist metadata (name + total track count).
-      // Note: do NOT use the ?fields= filter here. The parenthesis syntax
-      // Spotify uses for nested field filters (e.g. tracks(total)) gets
-      // URL-encoded by api.makeRequest as tracks%28total%29, which Spotify
-      // doesn't recognise as a field filter — it omits `tracks` from the
-      // response entirely, causing metadata.tracks to be undefined.
-      // The unfiltered response is small (first 20 items by default) and
-      // provides tracks.total reliably.
+      // GET /playlists/{id} returns the playlist object including the first
+      // page of items (up to 100) embedded in metadata.items.items.
+      // Spotify's 2024 API renamed the top-level `tracks` paging object to
+      // `items`, so we read metadata.items.total and metadata.items.items.
+      // This avoids a second API call — all we need is already here.
       const metadata = await api.makeRequest<SpotifyApiPlaylistMetadata>(
         'GET',
         `playlists/${playlistId}`,
       );
 
-      // Step 2: Fetch a small page of items for the sample tracks.
-      // We request exactly sampleSize items; mapPlaylistItem filters out
-      // local/removed/non-track items, so we may get fewer than sampleSize.
-      const page = await api.makeRequest<SpotifyApiPlaylistItemsPage>(
-        'GET',
-        `playlists/${playlistId}/items?limit=${sampleSize}&offset=0`,
-      );
-
       const tracks: SpotifyTrack[] = [];
-      for (const item of page.items) {
+      for (const item of metadata.items.items) {
         const track = mapPlaylistItem(item);
         if (track !== null) {
           tracks.push(track);
@@ -357,7 +356,7 @@ export function createSpotifyClient(deps: SpotifyClientDeps): SpotifyClient {
 
       return {
         name: metadata.name,
-        trackCount: metadata.tracks.total,
+        trackCount: metadata.items.total,
         tracks,
       };
     },
