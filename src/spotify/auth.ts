@@ -155,7 +155,7 @@ function errorHtml(error: string): string {
  *
  * Steps:
  * 1. Generate PKCE verifier/challenge and state.
- * 2. Start a localhost HTTP server to receive the /callback redirect.
+ * 2. Start a 127.0.0.1 HTTP server to receive the /callback redirect.
  * 3. Call onAuthorizeUrl() with the full authorize URL — caller opens the browser.
  * 4. Wait for Spotify to redirect back (with timeout).
  * 5. Validate state, extract code, close the server.
@@ -167,7 +167,11 @@ export async function runAuthFlow(params: RunAuthFlowParams): Promise<StoredToke
   const codeVerifier = generateCodeVerifier();
   const codeChallenge = deriveCodeChallenge(codeVerifier);
   const state = generateState();
-  const redirectUri = `http://localhost:${port}/callback`;
+  // Spotify requires the loopback IP literal — "localhost" is not accepted.
+  // HTTP is explicitly permitted for loopback addresses (127.0.0.1 / ::1) per
+  // Spotify's own rules and RFC 8252. The dashboard shows a "not secure" warning
+  // for http:// URIs; that warning is expected and safe to ignore for loopback.
+  const redirectUri = `http://127.0.0.1:${port}/callback`;
 
   const authorizeUrl = buildAuthorizeUrl({
     clientId,
@@ -188,7 +192,7 @@ export async function runAuthFlow(params: RunAuthFlowParams): Promise<StoredToke
 
     const server = http.createServer((req, res) => {
       // Only handle GET /callback — ignore favicon etc.
-      const reqUrl = new URL(req.url ?? '/', `http://localhost:${port}`);
+      const reqUrl = new URL(req.url ?? '/', `http://127.0.0.1:${port}`);
       if (reqUrl.pathname !== '/callback') {
         res.writeHead(404).end();
         return;
@@ -235,7 +239,7 @@ export async function runAuthFlow(params: RunAuthFlowParams): Promise<StoredToke
     // Don't let the timer keep the process alive if something else resolves first.
     if (timer.unref) timer.unref();
 
-    server.listen(port, 'localhost', () => {
+    server.listen(port, '127.0.0.1', () => {
       // Server is up — safe to direct the user to the authorize URL.
       onAuthorizeUrl(authorizeUrl);
     });

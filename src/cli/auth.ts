@@ -30,10 +30,21 @@ Spotify credentials not configured.
 
 To use spotify-sync you need to register a Spotify developer app:
 
-  1. Go to https://developer.spotify.com/dashboard and create an app.
+  1. Go to https://developer.spotify.com/dashboard and click "Create app".
+
+     Suggested values:
+       App name:        spotify-sync
+       App description: CLI tool to sync a Spotify playlist to a local music library
+       Website:         (leave blank)
+       API/SDK:         Web API  ← select this one only
 
   2. In the app's Settings → Redirect URIs, add:
-       http://localhost:${port}/callback
+       http://127.0.0.1:${port}/callback
+
+     Note: use the IP address 127.0.0.1, not "localhost" — Spotify requires
+     the explicit loopback IP. Spotify will show a "not secure" warning because
+     the URI uses http:// rather than https://; this warning is expected and safe
+     to ignore for loopback addresses (traffic never leaves your machine).
 
   3. Copy the Client ID and Client Secret from the app settings.
 

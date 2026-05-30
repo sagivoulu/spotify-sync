@@ -39,11 +39,23 @@ npm run setup    # npm install && npm run build
 
 spotify-sync authenticates with Spotify on your behalf via OAuth 2.0 (PKCE flow). This is a one-time setup:
 
-1. **Register a Spotify developer app** at [developer.spotify.com](https://developer.spotify.com/dashboard).
-   - Under *Redirect URIs*, add: `http://localhost:8888/callback`
-   - If Spotify rejects `localhost`, try `http://127.0.0.1:8888/callback` — Spotify has been moving
-     some plans to require the explicit loopback IP.
-   - Note your **Client ID** and **Client Secret** from the app settings.
+1. **Register a Spotify developer app** at [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) and click *Create app*.
+
+   Suggested values:
+   - **App name:** `spotify-sync`
+   - **App description:** `CLI tool to sync a Spotify playlist to a local music library`
+   - **Website:** leave blank
+   - **API/SDK:** select *Web API* only
+
+   Under *Redirect URIs*, add: **`http://127.0.0.1:8888/callback`**
+
+   > Spotify requires the explicit loopback IP address — `localhost` is not accepted.
+   > Spotify will show a "redirect URI is not secure" warning because the URI uses `http://`
+   > rather than `https://`. This warning is expected and safe to ignore: traffic to
+   > `127.0.0.1` never leaves your machine, and Spotify explicitly permits `http://` for
+   > loopback addresses.
+
+   Note your **Client ID** and **Client Secret** from the app settings.
 
 2. **Add credentials to your config file** at `~/.config/spotify-sync/config.json`:
    ```json
@@ -69,7 +81,7 @@ spotify-sync authenticates with Spotify on your behalf via OAuth 2.0 (PKCE flow)
    (readable only by you). Re-running `spotify-sync auth` overwrites it cleanly.
 
 > **Port override:** if port 8888 is in use, pass `--port <n>` and update the redirect URI in your
-> Spotify app settings to match.
+> Spotify app settings to `http://127.0.0.1:<n>/callback`.
 
 ## Setup & build
 

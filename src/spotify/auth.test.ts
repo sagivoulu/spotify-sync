@@ -193,7 +193,7 @@ async function driveCallback(
   params: Record<string, string>,
 ): Promise<{ status: number; body: string }> {
   const qs = new URLSearchParams(params).toString();
-  const response = await fetch(`http://localhost:${port}/callback?${qs}`);
+  const response = await fetch(`http://127.0.0.1:${port}/callback?${qs}`);
   const body = await response.text();
   return { status: response.status, body };
 }
