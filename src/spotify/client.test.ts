@@ -47,7 +47,7 @@ function makeTrackItem(overrides?: {
     added_by: { external_urls: {}, href: '', id: 'user', type: 'user', uri: '' },
     is_local: isLocal,
     primary_color: null,
-    track: trackNull
+    item: trackNull
       ? null
       : {
           id,
@@ -105,11 +105,11 @@ function makePage(
 ): object {
   const { offset = 0, total = items.length, hasNext = false } = opts ?? {};
   return {
-    href: `https://api.spotify.com/v1/playlists/pid/tracks?offset=${offset}&limit=50`,
+    href: `https://api.spotify.com/v1/playlists/pid/items?offset=${offset}&limit=100`,
     items,
-    limit: 50,
+    limit: 100,
     next: hasNext
-      ? `https://api.spotify.com/v1/playlists/pid/tracks?offset=${offset + 50}&limit=50`
+      ? `https://api.spotify.com/v1/playlists/pid/items?offset=${offset + 100}&limit=100`
       : null,
     offset,
     previous: null,
@@ -187,7 +187,7 @@ describe('fetchPlaylistTracks — pagination', () => {
     const page2Items = [makeTrackItem({ id: 'track-3', name: 'Song 3' })];
 
     const page1 = makePage(page1Items, { offset: 0, total: 3, hasNext: true });
-    const page2 = makePage(page2Items, { offset: 50, total: 3, hasNext: false });
+    const page2 = makePage(page2Items, { offset: 100, total: 3, hasNext: false });
 
     let callCount = 0;
     const fakeFetch = async (url: string | URL | Request): Promise<Response> => {
@@ -212,15 +212,19 @@ describe('fetchPlaylistTracks — pagination', () => {
     expect(tracks.map((t) => t.id)).toEqual(['track-1', 'track-2', 'track-3']);
   });
 
-  it('makes a second API call with offset=50 for the second page', async () => {
+  it('makes a second API call with offset=100 for the second page', async () => {
     const page1 = makePage([makeTrackItem({ id: 't1' })], { offset: 0, total: 2, hasNext: true });
-    const page2 = makePage([makeTrackItem({ id: 't2' })], { offset: 50, total: 2, hasNext: false });
+    const page2 = makePage([makeTrackItem({ id: 't2' })], {
+      offset: 100,
+      total: 2,
+      hasNext: false,
+    });
 
     const requestedUrls: string[] = [];
     const fakeFetch = async (url: string | URL | Request): Promise<Response> => {
       const urlStr = String(url);
       requestedUrls.push(urlStr);
-      const isPage2 = urlStr.includes('offset=50');
+      const isPage2 = urlStr.includes('offset=100');
       return new Response(JSON.stringify(isPage2 ? page2 : page1), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -231,7 +235,7 @@ describe('fetchPlaylistTracks — pagination', () => {
     await client.fetchPlaylistTracks('playlist-id');
 
     expect(requestedUrls).toHaveLength(2);
-    expect(requestedUrls[1]).toContain('offset=50');
+    expect(requestedUrls[1]).toContain('offset=100');
   });
 });
 

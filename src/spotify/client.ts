@@ -1,7 +1,53 @@
 import { SpotifyApi } from '@spotify/web-api-ts-sdk';
-import type { AccessToken, IAuthStrategy, Track } from '@spotify/web-api-ts-sdk';
+import type { AccessToken, IAuthStrategy } from '@spotify/web-api-ts-sdk';
 import { refreshAccessToken } from './auth.js';
 import type { StoredToken } from './token-store.js';
+
+// ---------------------------------------------------------------------------
+// Types for Spotify's GET /v1/playlists/{id}/items endpoint.
+//
+// Spotify renamed /tracks → /items in 2024; the response shape also changed:
+// each element now has an `item` field (singular) instead of `track`.
+// The SDK v1.x still calls the old /tracks path (returning 403); we call
+// /items directly via api.makeRequest which still goes through wrappedFetch.
+// ---------------------------------------------------------------------------
+
+interface SpotifyApiArtist {
+  id: string;
+  name: string;
+}
+
+interface SpotifyApiAlbum {
+  id: string;
+  name: string;
+  release_date: string;
+  images: { url: string; width: number; height: number }[];
+}
+
+interface SpotifyApiTrackItem {
+  id: string;
+  name: string;
+  type: string;
+  duration_ms: number;
+  is_local: boolean;
+  artists: SpotifyApiArtist[];
+  album: SpotifyApiAlbum;
+}
+
+interface SpotifyApiPlaylistItem {
+  added_at: string;
+  is_local: boolean;
+  /** The track or episode. null for tracks removed from Spotify's catalogue. */
+  item: SpotifyApiTrackItem | null;
+}
+
+interface SpotifyApiPlaylistItemsPage {
+  items: SpotifyApiPlaylistItem[];
+  next: string | null;
+  total: number;
+  offset: number;
+  limit: number;
+}
 
 // ---------------------------------------------------------------------------
 // Spotify client — playlist fetch with transparent token refresh.
@@ -17,8 +63,8 @@ import type { StoredToken } from './token-store.js';
 /** How many seconds before expiry we proactively refresh. */
 const REFRESH_SKEW_MS = 60_000;
 
-/** Items per page — SDK's PlaylistsEndpoints enforces MaxInt<50>. */
-const PAGE_SIZE = 50;
+/** Items per page — Spotify /items endpoint supports up to 100. */
+const PAGE_SIZE = 100;
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -189,23 +235,22 @@ export function createSpotifyClient(deps: SpotifyClientDeps): SpotifyClient {
       let offset = 0;
 
       for (;;) {
-        const page = await api.playlists.getPlaylistItems(
-          playlistId,
-          undefined, // market
-          undefined, // fields
-          PAGE_SIZE,
-          offset,
+        // Use api.makeRequest so the call goes through wrappedFetch (auth +
+        // refresh). The old /tracks endpoint returns 403 since Spotify renamed
+        // it to /items in 2024; the response shape also changed (item vs track).
+        const page = await api.makeRequest<SpotifyApiPlaylistItemsPage>(
+          'GET',
+          `playlists/${playlistId}/items?limit=${PAGE_SIZE}&offset=${offset}`,
         );
 
         for (const item of page.items) {
           // Skip local files (no Spotify ID), nulled-out removed tracks, and
           // non-track items (podcast episodes that may appear in playlists).
-          if (item.is_local || item.track == null || item.track.type !== 'track') {
+          if (item.is_local || item.item == null || item.item.type !== 'track') {
             continue;
           }
 
-          // The type guard above confirms this is a Track, not an Episode.
-          const track = item.track as Track;
+          const track = item.item;
 
           tracks.push({
             id: track.id,
