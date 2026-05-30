@@ -28,6 +28,16 @@ export function configFilePath(env: Env = process.env): string {
 }
 
 /**
+ * Returns the full path to the cached OAuth token file.
+ * e.g. ~/.config/spotify-sync/auth.json
+ *
+ * File must be written with 0600 permissions — it contains the refresh token.
+ */
+export function authFilePath(env: Env = process.env): string {
+  return join(configDir(env), 'auth.json');
+}
+
+/**
  * Returns the default data directory when `data_dir` is null in the config.
  * Respects $XDG_DATA_HOME; falls back to ~/.local/share on all platforms.
  * e.g. ~/.local/share/spotify-sync

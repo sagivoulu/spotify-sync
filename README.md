@@ -35,8 +35,54 @@ npm run setup    # npm install && npm run build
 > **Superset users:** setup runs automatically when superset creates the workspace
 > (via `.superset/config.json`). You don't need to run this manually.
 
-**Placeholder — Spotify credentials (coming soon):** once the auth feature lands, a config step
-will be added here (see the auth ticket).
+**Spotify credentials & authentication:**
+
+spotify-sync authenticates with Spotify on your behalf via OAuth 2.0 (PKCE flow). This is a one-time setup:
+
+1. **Register a Spotify developer app** at [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) and click *Create app*.
+
+   Suggested values:
+   - **App name:** `spotify-sync`
+   - **App description:** `CLI tool to sync a Spotify playlist to a local music library`
+   - **Website:** leave blank
+   - **Which API/SDKs are you planning to use?** select *Web API* only
+   - Check **I understand and agree with Spotify's Developer Terms of Service and Design Guidelines**
+
+   Under *Redirect URIs*, add: **`http://127.0.0.1:8888/callback`**
+
+   > Spotify requires the explicit loopback IP address — `localhost` is not accepted.
+   > Spotify will show a "redirect URI is not secure" warning because the URI uses `http://`
+   > rather than `https://`. This warning is expected and safe to ignore: traffic to
+   > `127.0.0.1` never leaves your machine, and Spotify explicitly permits `http://` for
+   > loopback addresses.
+
+   Note your **Client ID** and **Client Secret** from the app settings.
+
+2. **Add credentials to your config file** at `~/.config/spotify-sync/config.json`:
+   ```json
+   {
+     "spotify": {
+       "client_id": "YOUR_CLIENT_ID",
+       "client_secret": "YOUR_CLIENT_SECRET",
+       "playlist_url": "https://open.spotify.com/playlist/..."
+     },
+     "library": {
+       "path": "/path/to/your/music/library"
+     }
+   }
+   ```
+   Or use env vars: `SPOTIFY_SYNC_SPOTIFY_CLIENT_ID` and `SPOTIFY_SYNC_SPOTIFY_CLIENT_SECRET`.
+
+3. **Run the auth command:**
+   ```bash
+   ./bin/spotify-sync auth
+   ```
+   Your browser will open for Spotify's consent page. After approving, the terminal prints success.
+   The refresh token is saved to `~/.config/spotify-sync/auth.json` with `0600` permissions
+   (readable only by you). Re-running `spotify-sync auth` overwrites it cleanly.
+
+> **Port override:** if port 8888 is in use, pass `--port <n>` and update the redirect URI in your
+> Spotify app settings to `http://127.0.0.1:<n>/callback`.
 
 ## Setup & build
 

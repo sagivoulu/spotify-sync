@@ -21,4 +21,13 @@ describe('buildProgram', () => {
       expect(hasJson, `${cmd.name()} should have --json option`).toBe(true);
     }
   });
+
+  it('auth command has --port option defaulting to 8888', () => {
+    const program = buildProgram();
+    const auth = program.commands.find((cmd) => cmd.name() === 'auth');
+    expect(auth).toBeDefined();
+    const portOpt = auth?.options.find((opt) => opt.long === '--port');
+    expect(portOpt).toBeDefined();
+    expect(portOpt?.defaultValue).toBe('8888');
+  });
 });

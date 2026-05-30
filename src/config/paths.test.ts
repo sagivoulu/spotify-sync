@@ -1,7 +1,7 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { configDir, configFilePath, defaultDataDir } from './paths.js';
+import { authFilePath, configDir, configFilePath, defaultDataDir } from './paths.js';
 
 describe('configDir', () => {
   it('falls back to ~/.config/spotify-sync when XDG_CONFIG_HOME is unset', () => {
@@ -23,6 +23,18 @@ describe('configFilePath', () => {
   it('respects XDG_CONFIG_HOME when set', () => {
     expect(configFilePath({ XDG_CONFIG_HOME: '/xdg/config' })).toBe(
       join('/xdg/config', 'spotify-sync', 'config.json'),
+    );
+  });
+});
+
+describe('authFilePath', () => {
+  it('returns auth.json inside the config dir (default XDG)', () => {
+    expect(authFilePath({})).toBe(join(homedir(), '.config', 'spotify-sync', 'auth.json'));
+  });
+
+  it('respects XDG_CONFIG_HOME when set', () => {
+    expect(authFilePath({ XDG_CONFIG_HOME: '/xdg/config' })).toBe(
+      join('/xdg/config', 'spotify-sync', 'auth.json'),
     );
   });
 });
