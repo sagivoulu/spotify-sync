@@ -45,12 +45,14 @@ export async function runSyncCommand(options: RunSyncCommandOptions): Promise<vo
     }
 
     switch (event.type) {
-      case 'run-start':
+      case 'run-start': {
         process.stdout.write(`Library: ${event.libraryPath}\n`);
+        const restoredNote = event.restoredCount > 0 ? `, ${event.restoredCount} restored` : '';
         process.stdout.write(
-          `Syncing: ${event.pendingCount} pending, ${event.addedCount} new, ${event.removedMarkedCount} removed (concurrency: ${event.concurrency})\n`,
+          `Syncing: ${event.pendingCount} pending, ${event.addedCount} new, ${event.removedMarkedCount} removed${restoredNote} (concurrency: ${event.concurrency})\n`,
         );
         break;
+      }
 
       case 'track-downloaded':
         process.stdout.write(`✓ ${event.artist} — ${event.title} (${event.backend})\n`);

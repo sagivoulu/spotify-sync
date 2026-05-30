@@ -17,6 +17,8 @@ export interface RunStartEvent {
   pendingCount: number;
   addedCount: number;
   removedMarkedCount: number;
+  /** Tracks that were marked downloaded but whose files were missing on disk — reset to pending. */
+  restoredCount: number;
 }
 
 /** A track was successfully downloaded, tagged, and placed. */

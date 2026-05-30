@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type Database from 'better-sqlite3';
@@ -18,11 +19,13 @@ import {
   finalizeSyncRun,
   incrementAttempts,
   insertSyncRun,
+  listDownloadedTracks,
   listPendingTracks,
   markDownloaded,
   markFailed,
   markRemovedFromSource,
   resetPendingAttempts,
+  resetToPending,
   upsertTrack,
 } from '../db/index.js';
 import { placeDownloadedFile, resolveRelativePath } from '../library/index.js';
@@ -116,6 +119,11 @@ export interface RunSyncOptions {
    */
   placeFileFn?: (tempPath: string, libraryPath: string, relativePath: string) => string;
   /**
+   * Injectable file-existence check. Defaults to fs.existsSync.
+   * Tests inject () => true so that no-op placed files appear to exist on disk.
+   */
+  fileExists?: (absolutePath: string) => boolean;
+  /**
    * Injectable clock — returns the current time as an ISO string.
    * Tests inject a fixed value for deterministic assertions.
    */
@@ -151,6 +159,7 @@ export async function runSync(opts: RunSyncOptions = {}): Promise<SyncResult> {
     onEvent = () => {},
     now = () => new Date().toISOString(),
     tmpDir = tmpdir(),
+    fileExists = existsSync,
   } = opts;
 
   // -------------------------------------------------------------------------
@@ -252,6 +261,18 @@ export async function runSync(opts: RunSyncOptions = {}): Promise<SyncResult> {
   }
 
   const removedMarked = markRemovedFromSource(db, { libraryId, source, presentSourceIds });
+
+  // Detect downloaded tracks whose files have gone missing on disk and reset
+  // them to pending so this run re-downloads them.
+  let restoredCount = 0;
+  for (const row of listDownloadedTracks(db, { libraryId, source })) {
+    const absPath = join(config.library.path, row.file_path);
+    if (!fileExists(absPath)) {
+      resetToPending(db, row.id);
+      restoredCount++;
+    }
+  }
+
   resetPendingAttempts(db, { libraryId, source });
 
   const pendingTracks = listPendingTracks(db, { libraryId, source });
@@ -264,6 +285,7 @@ export async function runSync(opts: RunSyncOptions = {}): Promise<SyncResult> {
     pendingCount: pendingTracks.length,
     addedCount: added,
     removedMarkedCount: removedMarked,
+    restoredCount,
   });
 
   // -------------------------------------------------------------------------

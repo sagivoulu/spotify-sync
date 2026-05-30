@@ -104,6 +104,9 @@ function makeOpts(config: Config, tracks: SpotifyTrack[], backendOpts = {}) {
     backend: createFakeBackend(backendOpts),
     tagFileFn: noopTagFile,
     placeFileFn: noopPlaceFile,
+    // Since noopPlaceFile doesn't write real files, tell runSync all files exist
+    // so the missing-file scan doesn't spuriously re-queue downloaded tracks.
+    fileExists: () => true,
     now: () => '2026-05-30T10:00:00.000Z',
     tmpDir: '/tmp',
   };
@@ -306,6 +309,7 @@ describe('runSync — concurrency', () => {
       backend: instrumentedBackend,
       tagFileFn: noopTagFile,
       placeFileFn: noopPlaceFile,
+      fileExists: () => true,
       now: () => '2026-05-30T10:00:00.000Z',
       tmpDir: '/tmp',
     });
@@ -353,6 +357,7 @@ describe('runSync — idempotent re-run', () => {
       backend,
       tagFileFn: noopTagFile,
       placeFileFn: noopPlaceFile,
+      fileExists: () => true,
       now: () => '2026-05-30T10:00:00.000Z',
       tmpDir: '/tmp',
     };
@@ -462,6 +467,72 @@ describe('runSync — fatal errors', () => {
 // ---------------------------------------------------------------------------
 // sync_runs row is always inserted and finalized
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Missing file detection — re-queue downloaded tracks whose files are gone
+// ---------------------------------------------------------------------------
+
+describe('runSync — missing file re-download', () => {
+  it('re-downloads a track whose file was deleted from disk', async () => {
+    const config = makeConfig();
+    const track = makeTrack();
+
+    // First run: download the track (file "exists" via fileExists: () => true).
+    const opts1 = makeOpts(config, [track]);
+    await runSync(opts1);
+
+    const rowAfterFirst = opts1.db
+      .prepare('SELECT status FROM tracks WHERE source_id=?')
+      .get('track-001') as { status: string };
+    expect(rowAfterFirst.status).toBe('downloaded');
+
+    // Second run: same DB + playlist, but the file is gone from disk.
+    let downloadCalls = 0;
+    const countingBackend = {
+      ...createFakeBackend(),
+      async download(
+        candidate: Parameters<ReturnType<typeof createFakeBackend>['download']>[0],
+        opts: Parameters<ReturnType<typeof createFakeBackend>['download']>[1],
+      ): Promise<DownloadResult> {
+        downloadCalls++;
+        return { success: true, filePath: `${opts.outPath}.mp3`, candidate, backend: 'fake' };
+      },
+    };
+
+    const result2 = await runSync({
+      ...opts1,
+      backend: countingBackend,
+      fileExists: () => false, // simulate deleted file
+    });
+
+    expect(downloadCalls).toBe(1);
+    expect(result2.downloaded).toBe(1);
+    expect(result2.ok).toBe(true);
+
+    const rowAfterSecond = opts1.db
+      .prepare('SELECT status FROM tracks WHERE source_id=?')
+      .get('track-001') as { status: string };
+    expect(rowAfterSecond.status).toBe('downloaded');
+    opts1.db.close();
+  });
+
+  it('includes restored count in the run-start event', async () => {
+    const config = makeConfig();
+    const track = makeTrack();
+
+    const opts = makeOpts(config, [track]);
+    await runSync(opts); // first run: downloads track
+
+    const { events, onEvent } = collectEvents();
+    await runSync({ ...opts, backend: createFakeBackend(), fileExists: () => false, onEvent });
+
+    const startEvent = events.find((e) => e.type === 'run-start') as
+      | import('./events.js').RunStartEvent
+      | undefined;
+    expect(startEvent?.restoredCount).toBe(1);
+    opts.db.close();
+  });
+});
 
 describe('runSync — sync_runs tracking', () => {
   it('inserts a sync_runs row even on an empty playlist', async () => {

@@ -4,6 +4,7 @@ import { openDatabase } from './connection.js';
 import { runMigrations } from './migrations.js';
 
 export type {
+  DownloadedTrackRow,
   MarkDownloadedParams,
   MarkFailedParams,
   TrackRow,
@@ -11,11 +12,13 @@ export type {
 } from './tracks.js';
 export {
   incrementAttempts,
+  listDownloadedTracks,
   listPendingTracks,
   markDownloaded,
   markFailed,
   markRemovedFromSource,
   resetPendingAttempts,
+  resetToPending,
   upsertTrack,
 } from './tracks.js';
 

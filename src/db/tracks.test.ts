@@ -4,11 +4,13 @@ import { registerLibrary } from './index.js';
 import { runMigrations } from './migrations.js';
 import {
   incrementAttempts,
+  listDownloadedTracks,
   listPendingTracks,
   markDownloaded,
   markFailed,
   markRemovedFromSource,
   resetPendingAttempts,
+  resetToPending,
   upsertTrack,
 } from './tracks.js';
 
@@ -378,5 +380,89 @@ describe('markFailed', () => {
     expect(row.status).toBe('failed');
     expect(row.last_error).toBe('No candidates found');
     expect(row.attempts).toBe(3);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// listDownloadedTracks
+// ---------------------------------------------------------------------------
+
+describe('listDownloadedTracks', () => {
+  it('returns only downloaded tracks with their file paths', () => {
+    const db = makeDb();
+    const { id: id1 } = upsertTrack(db, { ...BASE_PARAMS, sourceId: 'dl-1' });
+    const { id: id2 } = upsertTrack(db, { ...BASE_PARAMS, sourceId: 'dl-2' });
+    upsertTrack(db, { ...BASE_PARAMS, sourceId: 'pending-1' });
+
+    markDownloaded(db, {
+      id: id1,
+      filePath: 'track1.mp3',
+      backend: 'yt-dlp',
+      backendSource: 'https://yt.com/1',
+      now: '2026-05-30T12:00:00.000Z',
+    });
+    markDownloaded(db, {
+      id: id2,
+      filePath: 'track2.mp3',
+      backend: 'yt-dlp',
+      backendSource: 'https://yt.com/2',
+      now: '2026-05-30T12:00:00.000Z',
+    });
+
+    const rows = listDownloadedTracks(db, { libraryId: 'default', source: 'spotify' });
+    db.close();
+
+    expect(rows).toHaveLength(2);
+    expect(rows.map((r) => r.file_path)).toEqual(
+      expect.arrayContaining(['track1.mp3', 'track2.mp3']),
+    );
+  });
+
+  it('returns an empty array when no downloaded tracks exist', () => {
+    const db = makeDb();
+    const rows = listDownloadedTracks(db, { libraryId: 'default', source: 'spotify' });
+    db.close();
+    expect(rows).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// resetToPending
+// ---------------------------------------------------------------------------
+
+describe('resetToPending', () => {
+  it('resets a downloaded track back to pending and clears download metadata', () => {
+    const db = makeDb();
+    const { id } = upsertTrack(db, { ...BASE_PARAMS, sourceId: 'reset-test' });
+    markDownloaded(db, {
+      id,
+      filePath: 'track.mp3',
+      backend: 'yt-dlp',
+      backendSource: 'https://yt.com/v=x',
+      now: '2026-05-30T12:00:00.000Z',
+    });
+
+    resetToPending(db, id);
+
+    const row = db
+      .prepare(
+        'SELECT status, file_path, backend, backend_source, downloaded_at, attempts FROM tracks WHERE id=?',
+      )
+      .get(id) as {
+      status: string;
+      file_path: string | null;
+      backend: string | null;
+      backend_source: string | null;
+      downloaded_at: string | null;
+      attempts: number;
+    };
+    db.close();
+
+    expect(row.status).toBe('pending');
+    expect(row.file_path).toBeNull();
+    expect(row.backend).toBeNull();
+    expect(row.backend_source).toBeNull();
+    expect(row.downloaded_at).toBeNull();
+    expect(row.attempts).toBe(0);
   });
 });

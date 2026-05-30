@@ -204,6 +204,63 @@ export function listPendingTracks(
 }
 
 // ---------------------------------------------------------------------------
+// listDownloadedTracks
+// ---------------------------------------------------------------------------
+
+export interface DownloadedTrackRow {
+  id: number;
+  source_id: string;
+  file_path: string;
+}
+
+/**
+ * Return all `downloaded` tracks for a given library/source, with their
+ * relative file paths. Used to detect files that have been deleted from disk
+ * so they can be reset to `pending` and re-downloaded.
+ */
+export function listDownloadedTracks(
+  db: Database.Database,
+  params: { libraryId: string; source: string },
+): DownloadedTrackRow[] {
+  const { libraryId, source } = params;
+  return db
+    .prepare(
+      `
+      SELECT id, source_id, file_path
+      FROM tracks
+      WHERE library_id = ? AND source = ? AND status = 'downloaded' AND file_path IS NOT NULL
+      ORDER BY id
+    `,
+    )
+    .all(libraryId, source) as DownloadedTrackRow[];
+}
+
+// ---------------------------------------------------------------------------
+// resetToPending
+// ---------------------------------------------------------------------------
+
+/**
+ * Reset a `downloaded` track back to `pending` when its file has gone missing.
+ * Clears the file location and download metadata so the next sync re-downloads it
+ * as if it were new, while preserving the original `first_seen_at`.
+ */
+export function resetToPending(db: Database.Database, id: number): void {
+  db.prepare(
+    `
+    UPDATE tracks
+    SET status        = 'pending',
+        file_path     = NULL,
+        backend       = NULL,
+        backend_source = NULL,
+        downloaded_at = NULL,
+        last_error    = NULL,
+        attempts      = 0
+    WHERE id = ?
+  `,
+  ).run(id);
+}
+
+// ---------------------------------------------------------------------------
 // incrementAttempts
 // ---------------------------------------------------------------------------
 
