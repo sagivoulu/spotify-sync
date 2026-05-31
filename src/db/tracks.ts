@@ -330,3 +330,91 @@ export function markFailed(db: Database.Database, params: MarkFailedParams): voi
   `,
   ).run(lastError, attempts, id);
 }
+
+// ---------------------------------------------------------------------------
+// TrackStatus
+// ---------------------------------------------------------------------------
+
+/** All valid values for the `tracks.status` column. */
+export type TrackStatus =
+  | 'pending'
+  | 'downloaded'
+  | 'failed'
+  | 'needs_manual'
+  | 'removed_from_source';
+
+// ---------------------------------------------------------------------------
+// countTracksByStatus
+// ---------------------------------------------------------------------------
+
+/**
+ * Return the count of tracks in this library grouped by status.
+ *
+ * All five statuses are always present in the result — statuses with no rows
+ * are zero-filled so callers never need to handle absent keys.
+ *
+ * Scoped to `libraryId` only (counts across all sources — v1 is Spotify-only).
+ */
+export function countTracksByStatus(
+  db: Database.Database,
+  params: { libraryId: string },
+): Record<TrackStatus, number> {
+  const { libraryId } = params;
+
+  const zero: Record<TrackStatus, number> = {
+    pending: 0,
+    downloaded: 0,
+    failed: 0,
+    needs_manual: 0,
+    removed_from_source: 0,
+  };
+
+  const rows = db
+    .prepare('SELECT status, COUNT(*) AS n FROM tracks WHERE library_id = ? GROUP BY status')
+    .all(libraryId) as { status: TrackStatus; n: number }[];
+
+  for (const row of rows) {
+    zero[row.status] = row.n;
+  }
+
+  return zero;
+}
+
+// ---------------------------------------------------------------------------
+// listTracksByStatus
+// ---------------------------------------------------------------------------
+
+/** A track row used by the status command for listing and disk-existence checks. */
+export interface StatusTrackRow {
+  id: number;
+  source_id: string;
+  artist: string;
+  title: string;
+  /** Relative path stored in tracks.file_path (present for downloaded rows). */
+  file_path: string | null;
+  /** Last error message (present for failed rows). */
+  last_error: string | null;
+}
+
+/**
+ * Return all tracks with the given status in this library, ordered by id
+ * (insertion order — deterministic for tests and display).
+ *
+ * Scoped to `libraryId` only (counts across all sources — v1 is Spotify-only).
+ */
+export function listTracksByStatus(
+  db: Database.Database,
+  params: { libraryId: string; status: TrackStatus },
+): StatusTrackRow[] {
+  const { libraryId, status } = params;
+  return db
+    .prepare(
+      `
+      SELECT id, source_id, artist, title, file_path, last_error
+      FROM tracks
+      WHERE library_id = ? AND status = ?
+      ORDER BY id
+    `,
+    )
+    .all(libraryId, status) as StatusTrackRow[];
+}

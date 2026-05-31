@@ -7,13 +7,17 @@ export type {
   DownloadedTrackRow,
   MarkDownloadedParams,
   MarkFailedParams,
+  StatusTrackRow,
   TrackRow,
+  TrackStatus,
   UpsertTrackParams,
 } from './tracks.js';
 export {
+  countTracksByStatus,
   incrementAttempts,
   listDownloadedTracks,
   listPendingTracks,
+  listTracksByStatus,
   markDownloaded,
   markFailed,
   markRemovedFromSource,

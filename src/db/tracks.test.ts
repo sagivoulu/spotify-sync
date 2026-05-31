@@ -3,9 +3,11 @@ import { openDatabase } from './connection.js';
 import { registerLibrary } from './index.js';
 import { runMigrations } from './migrations.js';
 import {
+  countTracksByStatus,
   incrementAttempts,
   listDownloadedTracks,
   listPendingTracks,
+  listTracksByStatus,
   markDownloaded,
   markFailed,
   markRemovedFromSource,
@@ -464,5 +466,141 @@ describe('resetToPending', () => {
     expect(row.backend_source).toBeNull();
     expect(row.downloaded_at).toBeNull();
     expect(row.attempts).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// countTracksByStatus
+// ---------------------------------------------------------------------------
+
+describe('countTracksByStatus', () => {
+  it('zero-fills all five statuses when no tracks exist', () => {
+    const db = makeDb();
+    const counts = countTracksByStatus(db, { libraryId: 'default' });
+    db.close();
+
+    expect(counts).toEqual({
+      pending: 0,
+      downloaded: 0,
+      failed: 0,
+      needs_manual: 0,
+      removed_from_source: 0,
+    });
+  });
+
+  it('counts correctly across multiple statuses', () => {
+    const db = makeDb();
+
+    // Insert 2 pending tracks.
+    const { id: id1 } = upsertTrack(db, { ...BASE_PARAMS, sourceId: 'track-001' });
+    upsertTrack(db, { ...BASE_PARAMS, sourceId: 'track-002' });
+
+    // Mark one downloaded.
+    markDownloaded(db, {
+      id: id1,
+      filePath: 'track-001.mp3',
+      backend: 'yt-dlp',
+      backendSource: 'https://youtube.com/watch?v=fake',
+      now: BASE_PARAMS.now,
+    });
+
+    const counts = countTracksByStatus(db, { libraryId: 'default' });
+    db.close();
+
+    expect(counts.downloaded).toBe(1);
+    expect(counts.pending).toBe(1);
+    expect(counts.failed).toBe(0);
+    expect(counts.needs_manual).toBe(0);
+    expect(counts.removed_from_source).toBe(0);
+  });
+
+  it('scopes to libraryId — does not count tracks from other libraries', () => {
+    const db = openDatabase(':memory:');
+    runMigrations(db);
+    registerLibrary(db, 'lib-a', '/music/a', '2026-01-01T00:00:00.000Z');
+    registerLibrary(db, 'lib-b', '/music/b', '2026-01-01T00:00:00.000Z');
+
+    upsertTrack(db, { ...BASE_PARAMS, libraryId: 'lib-a', sourceId: 'track-a1' });
+    upsertTrack(db, { ...BASE_PARAMS, libraryId: 'lib-b', sourceId: 'track-b1' });
+    upsertTrack(db, { ...BASE_PARAMS, libraryId: 'lib-b', sourceId: 'track-b2' });
+
+    expect(countTracksByStatus(db, { libraryId: 'lib-a' }).pending).toBe(1);
+    expect(countTracksByStatus(db, { libraryId: 'lib-b' }).pending).toBe(2);
+    db.close();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// listTracksByStatus
+// ---------------------------------------------------------------------------
+
+describe('listTracksByStatus', () => {
+  it('returns an empty array when no tracks match the status', () => {
+    const db = makeDb();
+    const rows = listTracksByStatus(db, { libraryId: 'default', status: 'failed' });
+    db.close();
+    expect(rows).toEqual([]);
+  });
+
+  it('returns pending rows with correct fields', () => {
+    const db = makeDb();
+    upsertTrack(db, { ...BASE_PARAMS, sourceId: 'track-001' });
+
+    const rows = listTracksByStatus(db, { libraryId: 'default', status: 'pending' });
+    db.close();
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      source_id: 'track-001',
+      artist: BASE_PARAMS.artist,
+      title: BASE_PARAMS.title,
+      file_path: null,
+      last_error: null,
+    });
+  });
+
+  it('returns failed rows with last_error populated', () => {
+    const db = makeDb();
+    const { id } = upsertTrack(db, { ...BASE_PARAMS, sourceId: 'track-001' });
+    markFailed(db, { id, lastError: 'No candidates found', attempts: 3 });
+
+    const rows = listTracksByStatus(db, { libraryId: 'default', status: 'failed' });
+    db.close();
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.last_error).toBe('No candidates found');
+  });
+
+  it('returns downloaded rows with file_path populated', () => {
+    const db = makeDb();
+    const { id } = upsertTrack(db, { ...BASE_PARAMS, sourceId: 'track-001' });
+    markDownloaded(db, {
+      id,
+      filePath: 'caro-emerald-back-it-up.mp3',
+      backend: 'yt-dlp',
+      backendSource: 'https://youtube.com/watch?v=fake',
+      now: BASE_PARAMS.now,
+    });
+
+    const rows = listTracksByStatus(db, { libraryId: 'default', status: 'downloaded' });
+    db.close();
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.file_path).toBe('caro-emerald-back-it-up.mp3');
+  });
+
+  it('does not include removed_from_source rows when querying pending', () => {
+    const db = makeDb();
+    upsertTrack(db, { ...BASE_PARAMS, sourceId: 'track-001' });
+    markRemovedFromSource(db, {
+      libraryId: 'default',
+      source: 'spotify',
+      presentSourceIds: [], // empty = mark all removed
+    });
+
+    const rows = listTracksByStatus(db, { libraryId: 'default', status: 'pending' });
+    db.close();
+
+    expect(rows).toHaveLength(0);
   });
 });
