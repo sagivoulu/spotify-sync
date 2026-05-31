@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { runAuthCommand } from './auth.js';
 import { runDoctorCommand } from './doctor.js';
+import { runStatusCommand } from './status.js';
 import { runSyncCommand } from './sync.js';
 
 // Version is hardcoded for v1 skeleton; make dynamic in a follow-up.
@@ -99,10 +100,21 @@ export function buildProgram(): Command {
   // ---------------------------------------------------------------------------
   program
     .command('status')
-    .description('Show sync status (pending, failed, removed tracks)')
+    .description('Show setup health and library state (downloaded, pending, missing)')
     .option('--json', 'Output as JSON')
-    .action(() => {
-      console.log('status: not yet implemented');
+    .option('--list', 'List problem tracks by section (not downloaded, missing files, failed)')
+    .action(async function (this: Command) {
+      const opts = this.optsWithGlobals<{
+        json: boolean;
+        list: boolean;
+        libraryPath?: string;
+        dbPath?: string;
+      }>();
+      await runStatusCommand({
+        json: opts.json ?? false,
+        list: opts.list ?? false,
+        globals: { libraryPath: opts.libraryPath, dbPath: opts.dbPath },
+      });
     });
 
   // ---------------------------------------------------------------------------
