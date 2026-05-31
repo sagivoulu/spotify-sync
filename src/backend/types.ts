@@ -40,7 +40,18 @@ export interface Candidate {
 }
 
 export type DownloadResult =
-  | { success: true; filePath: string; candidate: Candidate; backend: string }
+  | {
+      success: true;
+      filePath: string;
+      candidate: Candidate;
+      backend: string;
+      /**
+       * Raw stderr captured from the subprocess, even on success.
+       * yt-dlp writes progress/warning lines to stderr regardless of exit code;
+       * the sync pipeline forwards this to the per-run log file.
+       */
+      stderr: string;
+    }
   | { success: false; error: string };
 
 export interface DownloadBackend {
@@ -64,8 +75,10 @@ export interface DownloadBackend {
    * Download the given candidate to outPath.
    *
    * Never throws — subprocess failures are captured and returned as
-   * { success: false, error }. Stderr is captured into the result, not
-   * printed to the console (raw subprocess noise belongs in the log file).
+   * { success: false, error }. On success, raw stderr is included in the
+   * result (yt-dlp writes progress/warnings to stderr even on code 0).
+   * Neither case prints to the console — the sync pipeline writes stderr to
+   * the per-run log file.
    */
   download(
     candidate: Candidate,

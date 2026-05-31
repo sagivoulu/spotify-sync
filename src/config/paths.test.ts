@@ -1,7 +1,15 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { authFilePath, configDir, configFilePath, defaultDataDir } from './paths.js';
+import {
+  authFilePath,
+  configDir,
+  configFilePath,
+  defaultDataDir,
+  defaultStateDir,
+  logsDir,
+  runLogPath,
+} from './paths.js';
 
 describe('configDir', () => {
   it('falls back to ~/.config/spotify-sync when XDG_CONFIG_HOME is unset', () => {
@@ -47,6 +55,44 @@ describe('defaultDataDir', () => {
   it('respects XDG_DATA_HOME when set', () => {
     expect(defaultDataDir({ XDG_DATA_HOME: '/custom/data' })).toBe(
       join('/custom/data', 'spotify-sync'),
+    );
+  });
+});
+
+describe('defaultStateDir', () => {
+  it('falls back to ~/.local/state/spotify-sync when XDG_STATE_HOME is unset', () => {
+    expect(defaultStateDir({})).toBe(join(homedir(), '.local', 'state', 'spotify-sync'));
+  });
+
+  it('respects XDG_STATE_HOME when set', () => {
+    expect(defaultStateDir({ XDG_STATE_HOME: '/custom/state' })).toBe(
+      join('/custom/state', 'spotify-sync'),
+    );
+  });
+});
+
+describe('logsDir', () => {
+  it('returns logs/ inside the state dir (default XDG)', () => {
+    expect(logsDir({})).toBe(join(homedir(), '.local', 'state', 'spotify-sync', 'logs'));
+  });
+
+  it('respects XDG_STATE_HOME when set', () => {
+    expect(logsDir({ XDG_STATE_HOME: '/custom/state' })).toBe(
+      join('/custom/state', 'spotify-sync', 'logs'),
+    );
+  });
+});
+
+describe('runLogPath', () => {
+  it('returns <logsDir>/<runId>.log (default XDG)', () => {
+    expect(runLogPath(42, {})).toBe(
+      join(homedir(), '.local', 'state', 'spotify-sync', 'logs', '42.log'),
+    );
+  });
+
+  it('respects XDG_STATE_HOME when set', () => {
+    expect(runLogPath(7, { XDG_STATE_HOME: '/custom/state' })).toBe(
+      join('/custom/state', 'spotify-sync', 'logs', '7.log'),
     );
   });
 });

@@ -102,6 +102,7 @@ is ready to use immediately after opening — no manual setup step needed.
 | Build | `tsc` (no bundler for v1; revisit if build time becomes an issue) |
 | Test runner | Vitest 4.x (native ESM + Vite-based resolution) |
 | Lint / format | Biome (single tool for both; `biome.json` at repo root) |
+| Logging | `pino` v9+ — per-run JSON log files at `$XDG_STATE_HOME/spotify-sync/logs/<runId>.log`; injectable `RunLogger` interface in `src/logging/`; retention cap via `config.logging.max_run_logs` (default 20) |
 
 > **NodeNext import convention:** all relative imports in `src/` use `.js` extensions, e.g.
 > `import { foo } from './util.js'`. TypeScript resolves to the `.ts` source at compile time;
@@ -118,6 +119,7 @@ src/
 ├── db/                # SQLite state via better-sqlite3; migrations; PRAGMA foreign_keys ON
 ├── config/            # Config loading, XDG paths, env/flag/file precedence
 ├── library/           # Filename sanitization, collision resolution, atomic file placement (WES-11)
+├── logging/           # RunLogger interface + pino file-logger factory + retention-cap pruning (WES-24)
 └── tagging/           # ID3 read/write
 
 bin/

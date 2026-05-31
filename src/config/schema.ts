@@ -48,6 +48,11 @@ export const configSchema = z.object({
   logging: pre(
     z.object({
       level: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
+      /**
+       * Maximum number of per-run log files to keep in the logs dir.
+       * Oldest files (by numeric runId) are pruned at the start of each sync.
+       */
+      max_run_logs: z.coerce.number().int().positive().default(20),
     }),
   ),
 });
@@ -86,6 +91,7 @@ export type ConfigInput = {
   };
   logging?: {
     level?: string;
+    max_run_logs?: number | string;
   };
 };
 
@@ -110,6 +116,7 @@ export const CONFIG_FIELD_PATHS = [
   'download.retry_count',
   'download.search_source',
   'logging.level',
+  'logging.max_run_logs',
 ] as const;
 
 export type ConfigFieldPath = (typeof CONFIG_FIELD_PATHS)[number];

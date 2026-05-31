@@ -204,7 +204,7 @@ describe('YtDlpBackend.download', () => {
 
   it('returns success:true with filePath = outPath + .mp3 on exit 0', async () => {
     const backend = createYtDlpBackend({
-      runner: makeRunner({ stdout: '', stderr: '', code: 0 }),
+      runner: makeRunner({ stdout: '', stderr: 'yt-dlp progress output', code: 0 }),
     });
 
     const result = await backend.download(FAKE_CANDIDATE, {
@@ -217,6 +217,8 @@ describe('YtDlpBackend.download', () => {
       expect(result.filePath).toBe('/tmp/test-track.mp3');
       expect(result.backend).toBe('yt-dlp');
       expect(result.candidate).toBe(FAKE_CANDIDATE);
+      // stderr is included even on success (yt-dlp writes progress/warnings there).
+      expect(result.stderr).toBe('yt-dlp progress output');
     }
   });
 

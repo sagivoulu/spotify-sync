@@ -29,6 +29,7 @@ import {
   upsertTrack,
 } from '../db/index.js';
 import { placeDownloadedFile, resolveRelativePath } from '../library/index.js';
+import { type RunLogger, createFileRunLogger, createNoopRunLogger } from '../logging/index.js';
 import type { SpotifyClient, SpotifyTrack } from '../spotify/index.js';
 import { createSpotifyClientFromDisk, parsePlaylistId } from '../spotify/index.js';
 import type { AlbumArtCache } from '../tagging/index.js';
@@ -135,6 +136,15 @@ export interface RunSyncOptions {
    * Core never prints; the CLI subscribes here and formats output.
    */
   onEvent?: (event: SyncEvent) => void;
+
+  /**
+   * Factory that creates a RunLogger for the given sync run id.
+   *
+   * When omitted, defaults to createFileRunLogger (writes to the XDG state
+   * logs dir). Tests inject createNoopRunLogger() or a recording fake to
+   * avoid real filesystem I/O and capture log calls for assertions.
+   */
+  createRunLogger?: (runId: number) => RunLogger;
 }
 
 // ---------------------------------------------------------------------------
@@ -174,6 +184,18 @@ export async function runSync(opts: RunSyncOptions = {}): Promise<SyncResult> {
   }
 
   const db = opts.db ?? initDb(config);
+
+  // Resolve the run-logger factory after config is available so the default
+  // implementation can read config.logging.level / max_run_logs.
+  const createRunLoggerFn =
+    opts.createRunLogger ??
+    ((runId: number) =>
+      createFileRunLogger({
+        runId,
+        env,
+        level: config.logging.level,
+        maxRunLogs: config.logging.max_run_logs,
+      }));
 
   // Build or validate the download backend.
   let backend: DownloadBackend;
@@ -234,6 +256,10 @@ export async function runSync(opts: RunSyncOptions = {}): Promise<SyncResult> {
 
   const syncRunId = insertSyncRun(db, { libraryId, source, startedAt: now() });
 
+  // Open the per-run log file immediately after the run row is created so
+  // a file exists for every run (even one with zero pending tracks).
+  const logger = createRunLoggerFn(syncRunId);
+
   let added = 0;
   const presentSourceIds: string[] = [];
 
@@ -277,6 +303,18 @@ export async function runSync(opts: RunSyncOptions = {}): Promise<SyncResult> {
 
   const pendingTracks = listPendingTracks(db, { libraryId, source });
 
+  logger.info(
+    {
+      libraryPath: config.library.path,
+      concurrency: config.download.concurrency,
+      pendingCount: pendingTracks.length,
+      addedCount: added,
+      removedMarkedCount: removedMarked,
+      restoredCount,
+    },
+    'run-start',
+  );
+
   onEvent({
     type: 'run-start',
     runId: syncRunId,
@@ -299,155 +337,237 @@ export async function runSync(opts: RunSyncOptions = {}): Promise<SyncResult> {
   let downloaded = 0;
   let failed = 0;
 
-  await Promise.all(
-    pendingTracks.map((trackRow) =>
-      limit(async () => {
-        const spotifyTrack = trackMap.get(trackRow.source_id);
-        // Guard: if for any reason the track isn't in the map, skip it.
-        if (spotifyTrack === undefined) return;
+  try {
+    await Promise.all(
+      pendingTracks.map((trackRow) =>
+        limit(async () => {
+          const spotifyTrack = trackMap.get(trackRow.source_id);
+          // Guard: if for any reason the track isn't in the map, skip it.
+          if (spotifyTrack === undefined) return;
 
-        let attempts = 0;
-        let lastError = '';
+          let attempts = 0;
+          let lastError = '';
 
-        while (attempts < retryCount) {
-          attempts++;
-          let error: string | undefined;
+          while (attempts < retryCount) {
+            attempts++;
+            let error: string | undefined;
 
-          try {
-            // Search for a candidate.
-            const candidates = await backend.search({
-              artist: trackRow.artist,
-              title: trackRow.title,
-              durationMs: trackRow.duration_ms ?? undefined,
-            });
-
-            if (candidates.length === 0 || candidates[0] === undefined) {
-              error = 'No candidates found';
-            } else {
-              const candidate = candidates[0];
-              const outPath = join(tmpDir, `spotify-sync-${trackRow.source_id}`);
-
-              // Download.
-              const result = await backend.download(candidate, {
-                outPath,
-                format: audioFormat,
+            try {
+              // Search for a candidate.
+              const candidates = await backend.search({
+                artist: trackRow.artist,
+                title: trackRow.title,
+                durationMs: trackRow.duration_ms ?? undefined,
               });
 
-              if (!result.success) {
-                error = result.error;
+              if (candidates.length === 0 || candidates[0] === undefined) {
+                error = 'No candidates found';
               } else {
-                // Tag the downloaded file.
-                await tagFileFn(result.filePath, spotifyTrack, albumArtCache, { fetchFn });
+                const candidate = candidates[0];
+                const outPath = join(tmpDir, `spotify-sync-${trackRow.source_id}`);
 
-                // Resolve final path and place the file.
-                const relPath = resolveRelativePath(db, {
-                  libraryId,
-                  source,
-                  sourceId: trackRow.source_id,
-                  artist: trackRow.artist,
-                  title: trackRow.title,
-                  ext: audioFormat.codec,
+                logger.info(
+                  {
+                    trackId: trackRow.id,
+                    artist: trackRow.artist,
+                    title: trackRow.title,
+                    attempt: attempts,
+                    candidateUrl: candidate.url,
+                  },
+                  'download-attempt',
+                );
+
+                // Download.
+                const result = await backend.download(candidate, {
+                  outPath,
+                  format: audioFormat,
                 });
 
-                placeFileFn(result.filePath, config.library.path, relPath);
+                if (!result.success) {
+                  error = result.error;
+                  logger.warn(
+                    {
+                      trackId: trackRow.id,
+                      artist: trackRow.artist,
+                      title: trackRow.title,
+                      attempt: attempts,
+                      error,
+                    },
+                    'download-failed',
+                  );
+                } else {
+                  logger.info(
+                    {
+                      trackId: trackRow.id,
+                      artist: trackRow.artist,
+                      title: trackRow.title,
+                      attempt: attempts,
+                      backend: result.backend,
+                      stderr: result.stderr || undefined,
+                    },
+                    'download-success',
+                  );
 
-                // Update DB.
-                markDownloaded(db, {
-                  id: trackRow.id,
-                  filePath: relPath,
-                  backend: result.backend,
-                  backendSource: candidate.url,
-                  now: now(),
-                });
+                  // Tag the downloaded file.
+                  await tagFileFn(result.filePath, spotifyTrack, albumArtCache, { fetchFn });
 
-                downloaded++;
-                onEvent({
-                  type: 'track-downloaded',
+                  // Resolve final path and place the file.
+                  const relPath = resolveRelativePath(db, {
+                    libraryId,
+                    source,
+                    sourceId: trackRow.source_id,
+                    artist: trackRow.artist,
+                    title: trackRow.title,
+                    ext: audioFormat.codec,
+                  });
+
+                  placeFileFn(result.filePath, config.library.path, relPath);
+
+                  // Update DB.
+                  markDownloaded(db, {
+                    id: trackRow.id,
+                    filePath: relPath,
+                    backend: result.backend,
+                    backendSource: candidate.url,
+                    now: now(),
+                  });
+
+                  downloaded++;
+                  onEvent({
+                    type: 'track-downloaded',
+                    trackId: trackRow.id,
+                    artist: trackRow.artist,
+                    title: trackRow.title,
+                    filePath: relPath,
+                    backend: result.backend,
+                  });
+
+                  // Success — exit the retry loop.
+                  return;
+                }
+              }
+            } catch (err) {
+              // BackendError carries stderr; other errors get .message.
+              if (err instanceof BackendError) {
+                error = err.stderr.trim() || err.message;
+                logger.warn(
+                  {
+                    trackId: trackRow.id,
+                    artist: trackRow.artist,
+                    title: trackRow.title,
+                    attempt: attempts,
+                    stderr: err.stderr,
+                    exitCode: err.exitCode,
+                  },
+                  'search-error',
+                );
+              } else {
+                error = err instanceof Error ? err.message : String(err);
+                logger.warn(
+                  {
+                    trackId: trackRow.id,
+                    artist: trackRow.artist,
+                    title: trackRow.title,
+                    attempt: attempts,
+                    error,
+                  },
+                  'search-error',
+                );
+              }
+            }
+
+            // Attempt failed.
+            lastError = error ?? 'Unknown error';
+            incrementAttempts(db, trackRow.id, attempts);
+
+            if (attempts >= retryCount) {
+              // Budget exhausted.
+              markFailed(db, { id: trackRow.id, lastError, attempts });
+              failed++;
+              logger.error(
+                {
                   trackId: trackRow.id,
                   artist: trackRow.artist,
                   title: trackRow.title,
-                  filePath: relPath,
-                  backend: result.backend,
-                });
-
-                // Success — exit the retry loop.
-                return;
-              }
-            }
-          } catch (err) {
-            // BackendError carries stderr; other errors get .message.
-            if (err instanceof BackendError) {
-              error = err.stderr.trim() || err.message;
+                  attempts,
+                  error: lastError,
+                },
+                'track-failed',
+              );
+              onEvent({
+                type: 'track-failed',
+                trackId: trackRow.id,
+                artist: trackRow.artist,
+                title: trackRow.title,
+                attempts,
+                error: lastError,
+              });
             } else {
-              error = err instanceof Error ? err.message : String(err);
+              logger.info(
+                {
+                  trackId: trackRow.id,
+                  artist: trackRow.artist,
+                  title: trackRow.title,
+                  attempt: attempts,
+                  maxAttempts: retryCount,
+                  error: lastError,
+                },
+                'track-retry',
+              );
+              onEvent({
+                type: 'track-retry',
+                trackId: trackRow.id,
+                artist: trackRow.artist,
+                title: trackRow.title,
+                attempt: attempts,
+                maxAttempts: retryCount,
+                error: lastError,
+              });
             }
           }
+        }),
+      ),
+    );
 
-          // Attempt failed.
-          lastError = error ?? 'Unknown error';
-          incrementAttempts(db, trackRow.id, attempts);
+    // -------------------------------------------------------------------------
+    // Phase 5: Finalize sync_runs row
+    // -------------------------------------------------------------------------
 
-          if (attempts >= retryCount) {
-            // Budget exhausted.
-            markFailed(db, { id: trackRow.id, lastError, attempts });
-            failed++;
-            onEvent({
-              type: 'track-failed',
-              trackId: trackRow.id,
-              artist: trackRow.artist,
-              title: trackRow.title,
-              attempts,
-              error: lastError,
-            });
-          } else {
-            onEvent({
-              type: 'track-retry',
-              trackId: trackRow.id,
-              artist: trackRow.artist,
-              title: trackRow.title,
-              attempt: attempts,
-              maxAttempts: retryCount,
-              error: lastError,
-            });
-          }
-        }
-      }),
-    ),
-  );
+    finalizeSyncRun(db, {
+      id: syncRunId,
+      finishedAt: now(),
+      added,
+      downloaded,
+      failed,
+      removedMarked,
+    });
 
-  // -------------------------------------------------------------------------
-  // Phase 5: Finalize sync_runs row
-  // -------------------------------------------------------------------------
+    const result: SyncResult = {
+      runId: syncRunId,
+      added,
+      downloaded,
+      failed,
+      removedMarked,
+      ok: failed === 0,
+    };
 
-  finalizeSyncRun(db, {
-    id: syncRunId,
-    finishedAt: now(),
-    added,
-    downloaded,
-    failed,
-    removedMarked,
-  });
+    logger.info({ added, downloaded, failed, removedMarked, ok: result.ok }, 'run-finish');
 
-  const result: SyncResult = {
-    runId: syncRunId,
-    added,
-    downloaded,
-    failed,
-    removedMarked,
-    ok: failed === 0,
-  };
+    onEvent({
+      type: 'run-finish',
+      runId: syncRunId,
+      added,
+      downloaded,
+      failed,
+      removedMarked,
+      ok: result.ok,
+    });
 
-  onEvent({
-    type: 'run-finish',
-    runId: syncRunId,
-    added,
-    downloaded,
-    failed,
-    removedMarked,
-    ok: result.ok,
-  });
-
-  return result;
+    return result;
+  } finally {
+    // Always close the log file, even if the run throws an unexpected error.
+    await logger.close();
+  }
 }
 
 // ---------------------------------------------------------------------------
