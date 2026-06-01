@@ -8,14 +8,18 @@ export type {
   ImportTargetRow,
   MarkDownloadedParams,
   MarkFailedParams,
+  StatusTrackRow,
   TrackRow,
+  TrackStatus,
   UpsertTrackParams,
 } from './tracks.js';
 export {
+  countTracksByStatus,
   getImportTarget,
   incrementAttempts,
   listDownloadedTracks,
   listPendingTracks,
+  listTracksByStatus,
   markDownloaded,
   markFailed,
   markRemovedFromSource,
