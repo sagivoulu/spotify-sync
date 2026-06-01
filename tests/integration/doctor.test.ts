@@ -36,12 +36,12 @@ describe('doctor', () => {
   });
 
   it('reports ok=true with all checks passing when setup is correct', async () => {
-    const { result, exitCode } = await runCliJson<{ ok: boolean; checks: CheckResult[] }>({
+    const { result, exitCode, stderr } = await runCliJson<{ ok: boolean; checks: CheckResult[] }>({
       args: ['doctor', '--json'],
       env: buildChildEnv(sandbox, fakeBins),
     });
 
-    expect(exitCode, `stderr output: ${''}`).toBe(0);
+    expect(exitCode, `doctor exited ${exitCode}, stderr: ${stderr}`).toBe(0);
     expect(result.ok).toBe(true);
     expect(result.checks).toHaveLength(5); // Config, Auth, yt-dlp, ffmpeg, Spotify
 

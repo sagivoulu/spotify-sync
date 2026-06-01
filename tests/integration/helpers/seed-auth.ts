@@ -1,30 +1,56 @@
-import { chmodSync, mkdirSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 // ---------------------------------------------------------------------------
 // seedAuth — write a StoredToken to the sandbox's auth.json.
 //
-// Seeds the SPOTIFY_REFRESH_TOKEN from the environment as the stored refresh
-// token. The access_token is set to a non-empty placeholder and expires_at to
-// 0 so the Spotify client proactively refreshes on the first API call (since
-// 0 is always < now() - REFRESH_SKEW_MS of 60 s).
+// Token source (in priority order):
 //
-// loadToken (src/spotify/token-store.ts) validates that access_token is
-// non-empty — hence "placeholder" rather than an empty string.
+// 1. INTEGRATION_TOKEN_CACHE_PATH (set by setup.ts globalSetup):
+//    A pre-refreshed token written by the global setup.  All tests in a
+//    single run share this token — it has a valid access_token (not expired)
+//    so the binary never needs to call Spotify's refresh endpoint mid-test,
+//    avoiding refresh-token rotation problems where the second test's seeded
+//    original token has been invalidated by the first test's rotation.
 //
-// The scope string matches the SCOPES constant in src/spotify/auth.ts.
+// 2. Fallback — SPOTIFY_REFRESH_TOKEN with an expired placeholder access_token.
+//    Used when running seedAuth outside of the vitest integration suite
+//    (e.g. ad-hoc scripts).  In this case the binary will refresh on first
+//    API call, which may trigger rotation.
 // ---------------------------------------------------------------------------
 
-export function seedAuth(configDir: string): void {
-  const refreshToken = process.env.SPOTIFY_REFRESH_TOKEN;
-  if (!refreshToken) {
-    throw new Error('SPOTIFY_REFRESH_TOKEN is not set — cannot seed auth.json');
-  }
+interface CachedToken {
+  access_token: string;
+  refresh_token: string;
+  expires_at: number;
+  token_type: string;
+  scope: string;
+  obtained_at: number;
+}
 
-  const token = {
-    refresh_token: refreshToken,
-    // Non-empty placeholder — the proactive-refresh path replaces it before
-    // any real API call (expires_at: 0 ensures now() >= 0 - 60000 is always true).
+function loadCachedToken(): CachedToken | null {
+  const cachePath = process.env.INTEGRATION_TOKEN_CACHE_PATH;
+  if (!cachePath) return null;
+  try {
+    if (!existsSync(cachePath)) return null;
+    return JSON.parse(readFileSync(cachePath, 'utf-8')) as CachedToken;
+  } catch {
+    return null;
+  }
+}
+
+export function seedAuth(configDir: string): void {
+  const cached = loadCachedToken();
+
+  const token: CachedToken = cached ?? {
+    refresh_token: (() => {
+      const t = process.env.SPOTIFY_REFRESH_TOKEN;
+      if (!t) throw new Error('SPOTIFY_REFRESH_TOKEN is not set — cannot seed auth.json');
+      return t;
+    })(),
+    // Non-empty placeholder — forces proactive refresh on first API call.
+    // (loadToken in src/spotify/token-store.ts rejects empty access_token.)
     access_token: 'placeholder',
     expires_at: 0,
     token_type: 'Bearer',
@@ -33,7 +59,6 @@ export function seedAuth(configDir: string): void {
   };
 
   const filePath = join(configDir, 'auth.json');
-  // configDir is pre-created by createSandbox; mkdirSync is defensive.
   mkdirSync(configDir, { recursive: true });
   writeFileSync(filePath, `${JSON.stringify(token, null, 2)}\n`, {
     encoding: 'utf-8',
