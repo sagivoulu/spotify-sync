@@ -120,7 +120,7 @@ function makeOpts(config: Config, tracks: SpotifyTrack[], backendOpts = {}) {
     now: () => '2026-05-30T10:00:00.000Z',
     tmpDir: '/tmp',
     // Inject a noop logger so tests don't create files in the real XDG state dir.
-    createRunLogger: () => createNoopRunLogger(),
+    createRunLogger: (_runId, _runUuid) => createNoopRunLogger(),
   };
 }
 
@@ -797,7 +797,7 @@ describe('runSync — sync_runs tracking', () => {
       tagFileFn: noopTagFile,
       placeFileFn: noopPlaceFile,
       now: () => '2026-05-30T10:00:00.000Z',
-      createRunLogger: () => createNoopRunLogger(),
+      createRunLogger: (_runId, _runUuid) => createNoopRunLogger(),
     });
 
     const row = db
@@ -821,7 +821,7 @@ describe('runSync — per-run logging', () => {
     const recording = makeRecordingLogger();
 
     const opts = makeOpts(config, [track]);
-    await runSync({ ...opts, createRunLogger: () => recording.logger });
+    await runSync({ ...opts, createRunLogger: (_runId, _runUuid) => recording.logger });
 
     expect(recording.closed).toBe(true);
     opts.db.close();
@@ -833,7 +833,7 @@ describe('runSync — per-run logging', () => {
     const recording = makeRecordingLogger();
 
     const opts = makeOpts(config, [track]);
-    await runSync({ ...opts, createRunLogger: () => recording.logger });
+    await runSync({ ...opts, createRunLogger: (_runId, _runUuid) => recording.logger });
 
     const successEntry = recording.entries.find((e) => e.msg === 'download-success');
     expect(successEntry).toBeDefined();
@@ -850,7 +850,7 @@ describe('runSync — per-run logging', () => {
     const opts = makeOpts(config, [track], {
       downloadResult: { success: false, error: 'yt-dlp: HTTP 429 rate limited' } as DownloadResult,
     });
-    await runSync({ ...opts, createRunLogger: () => recording.logger });
+    await runSync({ ...opts, createRunLogger: (_runId, _runUuid) => recording.logger });
 
     const failEntry = recording.entries.find((e) => e.msg === 'download-failed');
     expect(failEntry).toBeDefined();
@@ -864,7 +864,7 @@ describe('runSync — per-run logging', () => {
     const recording = makeRecordingLogger();
 
     const opts = makeOpts(config, [track], { searchError: 'Sign in to confirm' });
-    await runSync({ ...opts, createRunLogger: () => recording.logger });
+    await runSync({ ...opts, createRunLogger: (_runId, _runUuid) => recording.logger });
 
     const searchErrEntry = recording.entries.find((e) => e.msg === 'search-error');
     expect(searchErrEntry).toBeDefined();
@@ -880,7 +880,7 @@ describe('runSync — per-run logging', () => {
     const opts = makeOpts(config, [track], {
       downloadResult: { success: false, error: 'timeout' } as DownloadResult,
     });
-    await runSync({ ...opts, createRunLogger: () => recording.logger });
+    await runSync({ ...opts, createRunLogger: (_runId, _runUuid) => recording.logger });
 
     const failedEntry = recording.entries.find((e) => e.msg === 'track-failed');
     expect(failedEntry).toBeDefined();
@@ -902,7 +902,7 @@ describe('runSync — per-run logging', () => {
       tagFileFn: noopTagFile,
       placeFileFn: noopPlaceFile,
       now: () => '2026-05-30T10:00:00.000Z',
-      createRunLogger: () => recording.logger,
+      createRunLogger: (_runId, _runUuid) => recording.logger,
     });
 
     expect(recording.entries.some((e) => e.msg === 'run-start')).toBe(true);

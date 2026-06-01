@@ -82,11 +82,11 @@ export function logsDir(env: Env = process.env): string {
 
 /**
  * Returns the full path for a specific sync run's log file.
- * e.g. ~/.local/state/spotify-sync/logs/42.log
+ * e.g. ~/.local/state/spotify-sync/logs/550e8400-e29b-41d4-a716-446655440000.log
  *
- * The runId is the numeric SQLite row id from sync_runs — a monotonically
- * increasing integer that doubles as a sortable timestamp proxy.
+ * The logId is a UUID v4 generated at run start — globally unique so filenames
+ * never collide even when the database is reset.
  */
-export function runLogPath(runId: number, env: Env = process.env): string {
-  return join(logsDir(env), `${runId}.log`);
+export function runLogPath(logId: string, env: Env = process.env): string {
+  return join(logsDir(env), `${logId}.log`);
 }

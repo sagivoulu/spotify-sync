@@ -84,15 +84,17 @@ describe('logsDir', () => {
 });
 
 describe('runLogPath', () => {
-  it('returns <logsDir>/<runId>.log (default XDG)', () => {
-    expect(runLogPath(42, {})).toBe(
-      join(homedir(), '.local', 'state', 'spotify-sync', 'logs', '42.log'),
+  it('returns <logsDir>/<uuid>.log (default XDG)', () => {
+    const uuid = '550e8400-e29b-41d4-a716-446655440000';
+    expect(runLogPath(uuid, {})).toBe(
+      join(homedir(), '.local', 'state', 'spotify-sync', 'logs', `${uuid}.log`),
     );
   });
 
   it('respects XDG_STATE_HOME when set', () => {
-    expect(runLogPath(7, { XDG_STATE_HOME: '/custom/state' })).toBe(
-      join('/custom/state', 'spotify-sync', 'logs', '7.log'),
+    const uuid = '550e8400-e29b-41d4-a716-446655440000';
+    expect(runLogPath(uuid, { XDG_STATE_HOME: '/custom/state' })).toBe(
+      join('/custom/state', 'spotify-sync', 'logs', `${uuid}.log`),
     );
   });
 });

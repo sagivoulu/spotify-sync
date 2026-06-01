@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -133,13 +134,16 @@ export interface RunSyncOptions {
   onEvent?: (event: SyncEvent) => void;
 
   /**
-   * Factory that creates a RunLogger for the given sync run id.
+   * Factory that creates a RunLogger for the given sync run.
+   *
+   * Receives both the numeric DB runId (for log-entry correlation) and a
+   * UUID v4 (for the log filename — globally unique, no recycling).
    *
    * When omitted, defaults to createFileRunLogger (writes to the XDG state
    * logs dir). Tests inject createNoopRunLogger() or a recording fake to
    * avoid real filesystem I/O and capture log calls for assertions.
    */
-  createRunLogger?: (runId: number) => RunLogger;
+  createRunLogger?: (runId: number, runUuid: string) => RunLogger;
 }
 
 // ---------------------------------------------------------------------------
@@ -195,9 +199,10 @@ export async function runSync(opts: RunSyncOptions = {}): Promise<SyncResult> {
   // implementation can read config.logging.level / max_run_logs.
   const createRunLoggerFn =
     opts.createRunLogger ??
-    ((runId: number) =>
+    ((runId: number, runUuid: string) =>
       createFileRunLogger({
         runId,
+        runUuid,
         env,
         level: config.logging.level,
         maxRunLogs: config.logging.max_run_logs,
@@ -255,11 +260,14 @@ export async function runSync(opts: RunSyncOptions = {}): Promise<SyncResult> {
   // Phase 3: Reconcile DB — upsert tracks, mark removed, reset attempts
   // -------------------------------------------------------------------------
 
+  // Generate the log UUID before inserting the run row — the UUID is the
+  // log filename, the runId is the DB key. Both are bound into every entry.
+  const runLogUuid = randomUUID();
   const syncRunId = insertSyncRun(db, { libraryId, source, startedAt: now() });
 
-  // Open the per-run log file immediately after the run row is created so
-  // a file exists for every run (even one with zero pending tracks).
-  const logger = createRunLoggerFn(syncRunId);
+  // Open the per-run log file immediately so a file exists for every run,
+  // even one with zero pending tracks.
+  const logger = createRunLoggerFn(syncRunId, runLogUuid);
 
   let added = 0;
   const presentSourceIds: string[] = [];
