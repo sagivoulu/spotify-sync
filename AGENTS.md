@@ -44,6 +44,18 @@ All code must be tested. There are no exceptions.
 - Tests live alongside the code they cover (or in a `tests/` directory mirroring the source structure)
 - Don't ship a feature without a test that would catch a regression
 
+**Two test suites — keep them separate:**
+
+| Suite | Command | When to use |
+|---|---|---|
+| Unit | `npm test` | Always — fast, hermetic, no credentials needed |
+| Integration | `npm run test:integration` | When adding/changing CLI wiring, Spotify calls, yt-dlp, DB writes, or file placement |
+
+Integration tests live in `tests/integration/` and spawn the real binary against a sandbox
+scratch directory.  They hit real Spotify (read-only) and use a fake yt-dlp by default
+(set `INTEGRATION_REAL_DOWNLOADS=1` for real downloads).  See `docs/integration-tests.md`
+for credential setup and the two-playlist arrangement required for the prune test.
+
 ### Code Quality
 - Follow existing patterns in the codebase. Don't introduce new conventions without a reason.
 - Keep modules focused. If a file is doing too many things, that's a flag — raise it, don't silently refactor.
