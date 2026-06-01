@@ -96,6 +96,9 @@ jobs:
           SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
           SPOTIFY_REFRESH_TOKEN: ${{ secrets.SPOTIFY_REFRESH_TOKEN }}
           GH_SECRETS_PAT: ${{ secrets.GH_SECRETS_PAT }}
+          # gh CLI reads GH_TOKEN for authentication. Set it to GH_SECRETS_PAT so
+          # `gh secret set` can update SPOTIFY_REFRESH_TOKEN when Spotify rotates it.
+          GH_TOKEN: ${{ secrets.GH_SECRETS_PAT }}
         run: |
           set -euo pipefail
 
