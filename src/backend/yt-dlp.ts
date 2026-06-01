@@ -2,7 +2,7 @@
 // YtDlpBackend — the v1 DownloadBackend implementation.
 //
 // Design decisions:
-// - Subprocess runner is injected (default: node:child_process execFile, not
+// - Subprocess runner is injected (default: node:child_process spawn, not
 //   exec/shell) so args are passed as an array and never shell-interpolated.
 //   This also makes the implementation unit-testable without a real binary.
 // - search() never prints to the console; stderr is captured into BackendError.
@@ -10,14 +10,16 @@
 // - search_source is passed at factory time and drives ytmsearch vs ytsearch.
 // ---------------------------------------------------------------------------
 
-import { execFile } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { BackendError } from './types.js';
 import type {
   AudioFormat,
+  BackendOperationOptions,
   Candidate,
   DownloadBackend,
   DownloadResult,
   SearchQuery,
+  SubprocessLogSink,
 } from './types.js';
 
 // ---------------------------------------------------------------------------
@@ -28,6 +30,11 @@ export interface RunResult {
   stdout: string;
   stderr: string;
   code: number;
+  durationMs?: number;
+}
+
+export interface SubprocessRunnerOptions {
+  log?: SubprocessLogSink;
 }
 
 /**
@@ -35,30 +42,59 @@ export interface RunResult {
  * when the process exits (including non-zero exit codes).
  * Rejects for OS-level errors (e.g. ENOENT — binary not found on PATH).
  */
-export type SubprocessRunner = (binary: string, args: string[]) => Promise<RunResult>;
+export type SubprocessRunner = (
+  binary: string,
+  args: string[],
+  opts?: SubprocessRunnerOptions,
+) => Promise<RunResult>;
 
-/** Default runner using node:child_process execFile (no shell — safe for untrusted args). */
+/** Default runner using node:child_process spawn (no shell — safe for untrusted args). */
 export const defaultRunner: SubprocessRunner = (
   binary: string,
   args: string[],
+  opts: SubprocessRunnerOptions = {},
 ): Promise<RunResult> =>
   new Promise((resolve, reject) => {
-    execFile(binary, args, { encoding: 'utf8' }, (err, stdout, stderr) => {
-      if (err === null) {
-        resolve({ stdout, stderr, code: 0 });
+    const startedAt = Date.now();
+    let stdout = '';
+    let stderr = '';
+    let settled = false;
+
+    const child = spawn(binary, args, {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    function append(stream: 'stdout' | 'stderr', chunk: Buffer): void {
+      const text = chunk.toString('utf8');
+      if (stream === 'stdout') {
+        stdout += text;
+      } else {
+        stderr += text;
+      }
+      opts.log?.({ binary, stream, chunk: text });
+    }
+
+    child.stdout?.on('data', (chunk: Buffer) => append('stdout', chunk));
+    child.stderr?.on('data', (chunk: Buffer) => append('stderr', chunk));
+
+    child.once('error', (err) => {
+      if (settled) {
         return;
       }
-      // OS-level errors (ENOENT = binary not found, etc.) have a string err.code.
-      // Propagate them so callers can detect "not installed" vs "exited non-zero".
-      if (typeof err.code === 'string') {
-        reject(err);
+      settled = true;
+      reject(err);
+    });
+
+    child.once('close', (code) => {
+      if (settled) {
         return;
       }
-      // Process ran but exited non-zero — resolve so callers can inspect the output.
+      settled = true;
       resolve({
         stdout,
         stderr,
-        code: typeof err.code === 'number' ? err.code : 1,
+        code: code ?? 1,
+        durationMs: Date.now() - startedAt,
       });
     });
   });
@@ -199,7 +235,7 @@ export interface YtDlpBackendOpts {
    * Supported: "youtube-music" (default), "youtube".
    */
   searchSource?: string;
-  /** Injectable subprocess runner. Defaults to the real execFile-based runner. */
+  /** Injectable subprocess runner. Defaults to the real spawn-based runner. */
   runner?: SubprocessRunner;
 }
 
@@ -216,9 +252,9 @@ export function createYtDlpBackend(opts: YtDlpBackendOpts = {}): DownloadBackend
   return {
     name: 'yt-dlp',
 
-    async search(query: SearchQuery): Promise<Candidate[]> {
+    async search(query: SearchQuery, opts?: BackendOperationOptions): Promise<Candidate[]> {
       const args = buildSearchArgs(searchSource, query);
-      const { stdout, stderr, code } = await runner('yt-dlp', args);
+      const { stdout, stderr, code } = await runner('yt-dlp', args, { log: opts?.log });
 
       if (code !== 0) {
         throw new BackendError(`yt-dlp search failed (exit ${code})`, stderr, code);
@@ -246,8 +282,10 @@ export function createYtDlpBackend(opts: YtDlpBackendOpts = {}): DownloadBackend
     async download(
       candidate: Candidate,
       opts: { outPath: string; format: AudioFormat },
+      operationOpts?: BackendOperationOptions,
     ): Promise<DownloadResult> {
       const { outPath, format } = opts;
+      const startedAt = Date.now();
 
       // Pass outPath as a template so yt-dlp appends the correct extension.
       const outputTemplate = `${outPath}.%(ext)s`;
@@ -260,7 +298,10 @@ export function createYtDlpBackend(opts: YtDlpBackendOpts = {}): DownloadBackend
       args.push('-o', outputTemplate);
 
       try {
-        const { stderr, code } = await runner('yt-dlp', args);
+        const { stdout, stderr, code, durationMs } = await runner('yt-dlp', args, {
+          log: operationOpts?.log,
+        });
+        const elapsedMs = durationMs ?? Date.now() - startedAt;
 
         if (code !== 0) {
           // Capture stderr into the result — don't print it; the sync pipeline
@@ -268,6 +309,10 @@ export function createYtDlpBackend(opts: YtDlpBackendOpts = {}): DownloadBackend
           return {
             success: false,
             error: stderr.trim() || `yt-dlp exited with code ${code}`,
+            stdout,
+            stderr,
+            exitCode: code,
+            durationMs: elapsedMs,
           };
         }
 
@@ -276,13 +321,16 @@ export function createYtDlpBackend(opts: YtDlpBackendOpts = {}): DownloadBackend
           filePath: `${outPath}.${format.codec}`,
           candidate,
           backend: 'yt-dlp',
+          stdout,
           stderr,
+          exitCode: code,
+          durationMs: elapsedMs,
         };
       } catch (err) {
         // OS-level errors (e.g. ENOENT — yt-dlp not installed). Return as failure
         // rather than throwing, because the caller expects a DownloadResult.
         const msg = err instanceof Error ? err.message : String(err);
-        return { success: false, error: msg };
+        return { success: false, error: msg, exitCode: null, durationMs: Date.now() - startedAt };
       }
     },
   };
