@@ -312,6 +312,56 @@ export function listPrunableTracks(
 }
 
 // ---------------------------------------------------------------------------
+// listPruneCandidates
+// ---------------------------------------------------------------------------
+
+/**
+ * Return tracks with files that are absent from the current upstream playlist.
+ *
+ * Used by `spotify-sync prune` after it refreshes the Spotify playlist. This
+ * lets prune show candidates immediately after the user removes a track from
+ * Spotify, without requiring a full sync/download run first.
+ */
+export function listPruneCandidates(
+  db: Database.Database,
+  params: { libraryId: string; source: string; presentSourceIds: string[] },
+): PrunableTrackRow[] {
+  const { libraryId, source, presentSourceIds } = params;
+
+  if (presentSourceIds.length === 0) {
+    return db
+      .prepare(
+        `
+        SELECT id, source_id, artist, title, file_path
+        FROM tracks
+        WHERE library_id = ?
+          AND source = ?
+          AND status IN ('downloaded', 'removed_from_source')
+          AND file_path IS NOT NULL
+        ORDER BY id
+      `,
+      )
+      .all(libraryId, source) as PrunableTrackRow[];
+  }
+
+  const placeholders = presentSourceIds.map(() => '?').join(', ');
+  return db
+    .prepare(
+      `
+      SELECT id, source_id, artist, title, file_path
+      FROM tracks
+      WHERE library_id = ?
+        AND source = ?
+        AND status IN ('downloaded', 'removed_from_source')
+        AND file_path IS NOT NULL
+        AND source_id NOT IN (${placeholders})
+      ORDER BY id
+    `,
+    )
+    .all(libraryId, source, ...presentSourceIds) as PrunableTrackRow[];
+}
+
+// ---------------------------------------------------------------------------
 // clearRemovedTrackFilePath
 // ---------------------------------------------------------------------------
 
@@ -326,7 +376,6 @@ export function clearRemovedTrackFilePath(db: Database.Database, id: number): vo
     SET status = 'removed_from_source',
         file_path = NULL
     WHERE id = ?
-      AND status = 'removed_from_source'
   `,
   ).run(id);
 }

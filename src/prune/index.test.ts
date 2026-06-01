@@ -7,6 +7,7 @@ import { openDatabase } from '../db/connection.js';
 import { registerLibrary } from '../db/index.js';
 import { runMigrations } from '../db/migrations.js';
 import { upsertTrack } from '../db/tracks.js';
+import type { SpotifyClient, SpotifyTrack } from '../spotify/index.js';
 import { type RunPruneOptions, runPrune } from './index.js';
 
 function makeConfig(libraryPath: string): Config {
@@ -14,7 +15,7 @@ function makeConfig(libraryPath: string): Config {
     spotify: {
       client_id: 'test-client-id',
       client_secret: 'test-client-secret',
-      playlist_url: 'https://open.spotify.com/playlist/test-playlist',
+      playlist_url: 'https://open.spotify.com/playlist/testPlaylist123',
     },
     library: {
       id: 'default',
@@ -79,6 +80,43 @@ function filePathFor(db: ReturnType<typeof makeDb>, sourceId: string): string | 
   return row.file_path;
 }
 
+function statusFor(db: ReturnType<typeof makeDb>, sourceId: string): string {
+  const row = db.prepare('SELECT status FROM tracks WHERE source_id = ?').get(sourceId) as {
+    status: string;
+  };
+  return row.status;
+}
+
+function makeSpotifyTrack(id: string): SpotifyTrack {
+  return {
+    id,
+    title: id,
+    artists: ['Test Artist'],
+    album: {
+      id: `album-${id}`,
+      name: 'Test Album',
+      images: [],
+    },
+    releaseYear: 2026,
+    durationMs: 180_000,
+    addedAt: '2026-01-01T00:00:00.000Z',
+  };
+}
+
+function makeSpotifyClient(presentIds: string[] = []): SpotifyClient {
+  return {
+    async fetchPlaylistTracks() {
+      return presentIds.map(makeSpotifyTrack);
+    },
+    async fetchPlaylistSummary() {
+      throw new Error('not used');
+    },
+    async fetchTrack() {
+      throw new Error('not used');
+    },
+  };
+}
+
 describe('runPrune', () => {
   let tmpDir: string;
   let db: ReturnType<typeof makeDb>;
@@ -103,6 +141,7 @@ describe('runPrune', () => {
       dryRun: true,
       config,
       db,
+      spotifyClient: makeSpotifyClient(),
       trashFn: async (...args) => {
         trashCalls.push(args);
       },
@@ -128,6 +167,7 @@ describe('runPrune', () => {
     const result = await runPrune({
       config,
       db,
+      spotifyClient: makeSpotifyClient(),
       fileExists: () => true,
       trashFn: async (...args) => {
         trashCalls.push(args);
@@ -148,6 +188,7 @@ describe('runPrune', () => {
     const result = await runPrune({
       config,
       db,
+      spotifyClient: makeSpotifyClient(),
       fileExists: () => false,
       trashFn: async (...args) => {
         trashCalls.push(args);
@@ -167,6 +208,7 @@ describe('runPrune', () => {
     const result = await runPrune({
       config,
       db,
+      spotifyClient: makeSpotifyClient(),
       fileExists: () => true,
       trashFn: async () => {
         throw new Error('trash unavailable');
@@ -190,6 +232,7 @@ describe('runPrune', () => {
     const result = await runPrune({
       config,
       db,
+      spotifyClient: makeSpotifyClient(),
       fileExists: (path) => !path.endsWith('missing.mp3'),
       trashFn: async (paths) => {
         if (paths[0].endsWith('failed.mp3')) {
@@ -205,5 +248,32 @@ describe('runPrune', () => {
     expect(filePathFor(db, 'success')).toBeNull();
     expect(filePathFor(db, 'missing')).toBeNull();
     expect(filePathFor(db, 'failed')).toBe('failed.mp3');
+  });
+
+  it('refreshes Spotify removals before listing candidates', async () => {
+    insertTrack(db, {
+      sourceId: 'removed-download',
+      title: 'Removed Download',
+      status: 'downloaded',
+      filePath: 'removed-download.mp3',
+    });
+    insertTrack(db, {
+      sourceId: 'present-download',
+      title: 'Present Download',
+      status: 'downloaded',
+      filePath: 'present-download.mp3',
+    });
+
+    const result = await runPrune({
+      dryRun: true,
+      config,
+      db,
+      spotifyClient: makeSpotifyClient(['present-download']),
+    });
+
+    expect(result.candidates.map((track) => track.sourceId)).toEqual(['removed-download']);
+    expect(statusFor(db, 'removed-download')).toBe('downloaded');
+    expect(filePathFor(db, 'removed-download')).toBe('removed-download.mp3');
+    expect(filePathFor(db, 'present-download')).toBe('present-download.mp3');
   });
 });

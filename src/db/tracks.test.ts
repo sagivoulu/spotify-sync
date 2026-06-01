@@ -10,6 +10,7 @@ import {
   listDownloadedTracks,
   listPendingTracks,
   listPrunableTracks,
+  listPruneCandidates,
   listTracksByStatus,
   markDownloaded,
   markFailed,
@@ -537,12 +538,68 @@ describe('listPrunableTracks', () => {
   });
 });
 
+describe('listPruneCandidates', () => {
+  it('returns downloaded tracks absent from the refreshed source list', () => {
+    const db = makeDb();
+    const { id: removedId } = upsertTrack(db, { ...BASE_PARAMS, sourceId: 'removed' });
+    const { id: presentId } = upsertTrack(db, { ...BASE_PARAMS, sourceId: 'present' });
+    db.prepare(`UPDATE tracks SET status='downloaded', file_path='removed.mp3' WHERE id=?`).run(
+      removedId,
+    );
+    db.prepare(`UPDATE tracks SET status='downloaded', file_path='present.mp3' WHERE id=?`).run(
+      presentId,
+    );
+
+    const rows = listPruneCandidates(db, {
+      libraryId: 'default',
+      source: 'spotify',
+      presentSourceIds: ['present'],
+    });
+    db.close();
+
+    expect(rows.map((row) => row.source_id)).toEqual(['removed']);
+  });
+
+  it('does not include rows without file paths', () => {
+    const db = makeDb();
+    upsertTrack(db, { ...BASE_PARAMS, sourceId: 'pending-without-file' });
+
+    const rows = listPruneCandidates(db, {
+      libraryId: 'default',
+      source: 'spotify',
+      presentSourceIds: [],
+    });
+    db.close();
+
+    expect(rows).toEqual([]);
+  });
+});
+
 describe('clearRemovedTrackFilePath', () => {
   it('clears file_path and preserves removed_from_source status', () => {
     const db = makeDb();
     const { id } = upsertTrack(db, { ...BASE_PARAMS, sourceId: 'clear-me' });
     db.prepare(
       `UPDATE tracks SET status='removed_from_source', file_path='clear-me.mp3' WHERE id=?`,
+    ).run(id);
+
+    clearRemovedTrackFilePath(db, id);
+
+    const row = db.prepare('SELECT status, file_path FROM tracks WHERE id=?').get(id) as {
+      status: string;
+      file_path: string | null;
+    };
+    db.close();
+
+    expect(row.status).toBe('removed_from_source');
+    expect(row.file_path).toBeNull();
+  });
+
+  it('marks a downloaded row removed when clearing its pruned file path', () => {
+    const db = makeDb();
+    const { id } = upsertTrack(db, { ...BASE_PARAMS, sourceId: 'clear-downloaded' });
+    db.prepare(
+      `UPDATE tracks SET status='downloaded', file_path='clear-downloaded.mp3' WHERE id=?`,
     ).run(id);
 
     clearRemovedTrackFilePath(db, id);

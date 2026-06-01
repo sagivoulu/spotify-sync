@@ -217,6 +217,10 @@ spotify-sync import <file> --for <track-id> [--move]
                                            # Tool re-tags the file and updates the DB row.
 ```
 
+`prune` refreshes the configured Spotify playlist before listing candidates, but only for removal
+detection: it does not insert new tracks, download files, or run the full sync pipeline. `--dry-run`
+may call Spotify and read the DB, but must not move files or mutate DB rows.
+
 All commands accept `--json` for machine-readable output.
 
 ## Output format

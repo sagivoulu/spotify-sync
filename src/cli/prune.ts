@@ -31,6 +31,7 @@ export async function runPruneCommand(
   try {
     preview = await run({
       dryRun: true,
+      refreshSource: true,
       cliFlags: mapCliFlags(globals),
       env: process.env,
     });
@@ -98,6 +99,8 @@ export async function runPruneCommand(
   try {
     result = await run({
       dryRun: false,
+      refreshSource: false,
+      candidates: preview.candidates,
       cliFlags: mapCliFlags(globals),
       env: process.env,
     });

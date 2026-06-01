@@ -98,6 +98,24 @@ describe('runPruneCommand', () => {
     expect(process.exitCode).toBe(0);
   });
 
+  it('prints a concise message when there are no prune candidates', async () => {
+    const stdout = captureStdout();
+    const deps: RunPruneCommandDeps = {
+      runPrune: async () =>
+        makeResult({
+          candidates: [],
+          outcomes: [],
+        }),
+    };
+
+    await runPruneCommand({ dryRun: true, yes: false, json: false, globals: {} }, deps);
+
+    stdout.restore();
+
+    expect(stdout.output).toContain('No removed tracks with files to prune');
+    expect(process.exitCode).toBe(0);
+  });
+
   it('confirmation defaults to abort when confirmDeletion returns false', async () => {
     const stdout = captureStdout();
     const calls: unknown[] = [];
