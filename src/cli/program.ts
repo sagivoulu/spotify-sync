@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import { runAuthCommand } from './auth.js';
 import { runDoctorCommand } from './doctor.js';
 import { runImportCommand } from './import.js';
+import { runPruneCommand } from './prune.js';
 import { runStatusCommand } from './status.js';
 import { runSyncCommand } from './sync.js';
 
@@ -123,11 +124,24 @@ export function buildProgram(): Command {
   // ---------------------------------------------------------------------------
   program
     .command('prune')
-    .description('Review files for tracks removed from the playlist; optionally delete them')
+    .description('Review files for tracks removed from the playlist; optionally move them to trash')
     .option('--dry-run', 'Show what would be removed without deleting anything')
+    .option('--yes', 'Move files to trash without prompting for confirmation')
     .option('--json', 'Output as JSON')
-    .action(() => {
-      console.log('prune: not yet implemented');
+    .action(async function (this: Command) {
+      const opts = this.optsWithGlobals<{
+        dryRun: boolean;
+        yes: boolean;
+        json: boolean;
+        libraryPath?: string;
+        dbPath?: string;
+      }>();
+      await runPruneCommand({
+        dryRun: opts.dryRun ?? false,
+        yes: opts.yes ?? false,
+        json: opts.json ?? false,
+        globals: { libraryPath: opts.libraryPath, dbPath: opts.dbPath },
+      });
     });
 
   // ---------------------------------------------------------------------------

@@ -34,6 +34,7 @@ Given a Spotify playlist URL, download every track in it as a tagged MP3 to a lo
   - `yt-dlp` invoked as a subprocess (binary must be on PATH; tool checks at startup)
   - `better-sqlite3` for the state DB
   - `node-id3` for ID3 write/read (chosen in WES-12: direct MP3 ID3 writes, APIC support, custom `TXXX` frames, and a small dependency surface)
+  - `trash` for `prune` file cleanup via the system trash instead of hard deletion (chosen in WES-16 for recoverability)
   - A CLI framework — `commander` or similar
   - Each new dependency gets a one-line rationale in the commit that adds it (per `AGENTS.md` security guidance).
 
@@ -209,7 +210,7 @@ Status lifecycle:
 spotify-sync auth                          # one-time OAuth flow
 spotify-sync sync                          # the main loop (fetch + download)
 spotify-sync status [--json]               # summary + list of failed / removed / pending
-spotify-sync prune [--dry-run]             # confirm-then-delete files for removed_from_source rows
+spotify-sync prune [--dry-run] [--yes]     # confirm-then-trash files for removed_from_source rows
 spotify-sync import <file> --for <track-id> [--move]
                                            # resolve a track manually (file already exists, OR you have
                                            # a corrected version). Default: copy. --move: move the file in.
@@ -278,7 +279,7 @@ Per `AGENTS.md`: every behavior shipped has tests.
 
 ## Open questions
 
-- Should `prune` also offer a "move to trash" mode rather than hard-delete, to make recovery easier? Lean yes; cheap to add. Decide during implementation.
+- `prune` deletion mode: resolved in WES-16 — always move files to system trash in v1; no hard-delete mode.
 - Album art: embed only, or also save sidecar `cover.jpg`? Embed-only for v1 unless a clear reason emerges.
 - `removed_from_source` tracks whose file was *also* manually deleted: do we keep the row forever, or garbage-collect after N days? v1: keep forever; user can edit DB if it gets noisy.
 - Should v1 ship a `library register` / `library list` command surface even though only one library is in use? Lean no — wait for `future/multi-library.md` to drive command surface. v1 auto-registers the configured library on first run.
