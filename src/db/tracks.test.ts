@@ -8,6 +8,7 @@ import {
   incrementAttempts,
   listDownloadedTracks,
   listPendingTracks,
+  listTrackedFilePaths,
   listTracksByStatus,
   markDownloaded,
   markFailed,
@@ -645,5 +646,76 @@ describe('listTracksByStatus', () => {
     db.close();
 
     expect(rows).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// listTrackedFilePaths
+// ---------------------------------------------------------------------------
+
+describe('listTrackedFilePaths', () => {
+  it('returns every non-null file_path for the library regardless of status', () => {
+    const db = makeDb();
+    const { id: downloadedId } = upsertTrack(db, {
+      ...BASE_PARAMS,
+      sourceId: 'track-downloaded',
+    });
+    markDownloaded(db, {
+      id: downloadedId,
+      filePath: 'downloaded.mp3',
+      backend: 'yt-dlp',
+      backendSource: 'https://youtube.com/watch?v=fake',
+      now: BASE_PARAMS.now,
+    });
+
+    const { id: failedId } = upsertTrack(db, { ...BASE_PARAMS, sourceId: 'track-failed' });
+    db.prepare("UPDATE tracks SET status = 'failed', file_path = ? WHERE id = ?").run(
+      'failed-but-registered.m4a',
+      failedId,
+    );
+
+    upsertTrack(db, { ...BASE_PARAMS, sourceId: 'track-pending' });
+
+    expect(listTrackedFilePaths(db, { libraryId: 'default' })).toEqual([
+      'downloaded.mp3',
+      'failed-but-registered.m4a',
+    ]);
+    db.close();
+  });
+
+  it('scopes file paths by libraryId', () => {
+    const db = openDatabase(':memory:');
+    runMigrations(db);
+    registerLibrary(db, 'lib-a', '/music/a', '2026-01-01T00:00:00.000Z');
+    registerLibrary(db, 'lib-b', '/music/b', '2026-01-01T00:00:00.000Z');
+
+    const { id: aId } = upsertTrack(db, {
+      ...BASE_PARAMS,
+      libraryId: 'lib-a',
+      sourceId: 'track-a',
+    });
+    markDownloaded(db, {
+      id: aId,
+      filePath: 'a.mp3',
+      backend: 'yt-dlp',
+      backendSource: 'https://youtube.com/watch?v=a',
+      now: BASE_PARAMS.now,
+    });
+
+    const { id: bId } = upsertTrack(db, {
+      ...BASE_PARAMS,
+      libraryId: 'lib-b',
+      sourceId: 'track-b',
+    });
+    markDownloaded(db, {
+      id: bId,
+      filePath: 'b.mp3',
+      backend: 'yt-dlp',
+      backendSource: 'https://youtube.com/watch?v=b',
+      now: BASE_PARAMS.now,
+    });
+
+    expect(listTrackedFilePaths(db, { libraryId: 'lib-a' })).toEqual(['a.mp3']);
+    db.close();
   });
 });

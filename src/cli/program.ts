@@ -101,9 +101,9 @@ export function buildProgram(): Command {
   // ---------------------------------------------------------------------------
   program
     .command('status')
-    .description('Show setup health and library state (downloaded, pending, missing)')
+    .description('Show setup health and library state (downloaded, pending, missing, untracked)')
     .option('--json', 'Output as JSON')
-    .option('--list', 'List problem tracks by section (not downloaded, missing files, failed)')
+    .option('--list', 'List problem tracks and untracked files by section')
     .action(async function (this: Command) {
       const opts = this.optsWithGlobals<{
         json: boolean;

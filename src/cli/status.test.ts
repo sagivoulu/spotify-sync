@@ -25,6 +25,7 @@ const OK_REPORT: StatusReport = {
       downloaded: 45,
       pending: 3,
       missingFiles: 1,
+      untrackedFiles: 1,
       failed: 2,
       needsManual: 0,
       knownInPlaylist: 50,
@@ -36,6 +37,7 @@ const OK_REPORT: StatusReport = {
       { artist: 'Caro Emerald', title: 'Pending Three', sourceId: 'p3' },
     ],
     missingFiles: [{ artist: 'Artist', title: 'Missing Song', sourceId: 'm1' }],
+    untrackedFiles: ['manual/nested-track.mp3'],
     failed: [
       { artist: 'Caro Emerald', title: 'Failed Track', sourceId: 'f1', error: 'No candidates' },
       { artist: 'Caro Emerald', title: 'Failed Track 2', sourceId: 'f2', error: 'Timeout' },
@@ -98,6 +100,7 @@ describe('runStatusCommand', () => {
     expect(text).toContain('"My DJ Set"');
     expect(text).toContain('/music/wcs');
     expect(text).toContain('45 / 52');
+    expect(text).toContain('Untracked files:  1');
     expect(process.exitCode).toBe(0);
   });
 
@@ -127,8 +130,10 @@ describe('runStatusCommand', () => {
     // Section headers (with count in parens) only appear with --list.
     expect(text).not.toContain('Not downloaded (');
     expect(text).not.toContain('Missing files (');
+    expect(text).not.toContain('Untracked files (');
     expect(text).not.toContain('Failed (');
     expect(text).not.toContain('Pending One');
+    expect(text).not.toContain('manual/nested-track.mp3');
   });
 
   it('prints track lists in separate sections with --list', async () => {
@@ -145,6 +150,8 @@ describe('runStatusCommand', () => {
     expect(text).toContain('Pending Two');
     expect(text).toContain('Missing files (1)');
     expect(text).toContain('Missing Song');
+    expect(text).toContain('Untracked files (1)');
+    expect(text).toContain('manual/nested-track.mp3');
     expect(text).toContain('Failed (2)');
     expect(text).toContain('No candidates');
   });

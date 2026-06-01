@@ -22,6 +22,8 @@ export interface LibraryCounts {
   pending: number;
   /** Tracks whose DB status is downloaded but whose file is absent from disk. */
   missingFiles: number;
+  /** Local audio files present on disk but not referenced by tracks.file_path. */
+  untrackedFiles: number;
   /** Tracks that failed to download (status=failed). */
   failed: number;
   /** Tracks that require manual resolution (status=needs_manual). */
@@ -54,6 +56,8 @@ export interface LibraryStatus {
   notDownloaded: TrackListItem[];
   /** Downloaded tracks whose file is missing from disk. */
   missingFiles: TrackListItem[];
+  /** Relative paths for local audio files not registered in the DB. */
+  untrackedFiles: string[];
   /** Tracks that failed to download, with last_error. */
   failed: TrackListItem[];
   /** Human-readable error detail when configured=false. */

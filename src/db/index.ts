@@ -19,6 +19,7 @@ export {
   incrementAttempts,
   listDownloadedTracks,
   listPendingTracks,
+  listTrackedFilePaths,
   listTracksByStatus,
   markDownloaded,
   markFailed,

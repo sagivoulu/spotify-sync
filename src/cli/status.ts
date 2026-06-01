@@ -122,6 +122,9 @@ function printHumanReport(report: StatusReport, showList: boolean): void {
   if (counts.missingFiles > 0) {
     process.stdout.write(`  Missing files:    ${counts.missingFiles}\n`);
   }
+  if (counts.untrackedFiles > 0) {
+    process.stdout.write(`  Untracked files:  ${counts.untrackedFiles}\n`);
+  }
   if (counts.failed > 0) {
     process.stdout.write(`  Failed:           ${counts.failed}\n`);
   }
@@ -134,9 +137,10 @@ function printHumanReport(report: StatusReport, showList: boolean): void {
   // -- Track lists (--list) --
   const hasPending = library.notDownloaded.length > 0;
   const hasMissing = library.missingFiles.length > 0;
+  const hasUntracked = library.untrackedFiles.length > 0;
   const hasFailed = library.failed.length > 0;
 
-  if (!hasPending && !hasMissing && !hasFailed) {
+  if (!hasPending && !hasMissing && !hasUntracked && !hasFailed) {
     process.stdout.write('\nAll downloaded tracks are accounted for.\n');
     return;
   }
@@ -152,6 +156,13 @@ function printHumanReport(report: StatusReport, showList: boolean): void {
     process.stdout.write(`\nMissing files (${library.missingFiles.length}):\n`);
     for (const t of library.missingFiles) {
       process.stdout.write(`  - ${t.artist} — ${t.title}\n`);
+    }
+  }
+
+  if (hasUntracked) {
+    process.stdout.write(`\nUntracked files (${library.untrackedFiles.length}):\n`);
+    for (const filePath of library.untrackedFiles) {
+      process.stdout.write(`  - ${filePath}\n`);
     }
   }
 

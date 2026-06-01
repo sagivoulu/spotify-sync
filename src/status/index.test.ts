@@ -13,13 +13,16 @@
 // - DB schema not created (tracks table absent) → dbInitialized=false.
 // ---------------------------------------------------------------------------
 
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { openDatabase } from '../db/connection.js';
 import { registerLibrary } from '../db/index.js';
 import { runMigrations } from '../db/migrations.js';
 import { markDownloaded, markFailed, upsertTrack } from '../db/tracks.js';
 import type { RunDoctorResult } from '../doctor/index.js';
-import { getStatus } from './index.js';
+import { getStatus, scanLocalAudioFiles } from './index.js';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -131,6 +134,50 @@ function makeSeededDb() {
 }
 
 // ---------------------------------------------------------------------------
+// Local audio scan
+// ---------------------------------------------------------------------------
+
+describe('scanLocalAudioFiles', () => {
+  it('recursively returns relative .mp3 and .m4a paths and ignores other files', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'spotify-sync-status-'));
+    try {
+      mkdirSync(join(dir, 'nested'), { recursive: true });
+      writeFileSync(join(dir, 'Song.MP3'), 'audio');
+      writeFileSync(join(dir, 'nested', 'Manual.m4a'), 'audio');
+      writeFileSync(join(dir, 'nested', 'cover.jpg'), 'image');
+      writeFileSync(join(dir, 'notes.txt'), 'notes');
+
+      const paths = scanLocalAudioFiles(dir);
+
+      expect(paths).toHaveLength(2);
+      expect(paths).toEqual(expect.arrayContaining(['Song.MP3', 'nested/Manual.m4a']));
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('does not follow symlinked directories', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'spotify-sync-status-'));
+    try {
+      const libraryDir = join(dir, 'library');
+      const externalDir = join(dir, 'external');
+      mkdirSync(libraryDir, { recursive: true });
+      mkdirSync(externalDir, { recursive: true });
+      writeFileSync(join(externalDir, 'outside.mp3'), 'audio');
+      symlinkSync(externalDir, join(libraryDir, 'linked'), 'dir');
+
+      expect(scanLocalAudioFiles(libraryDir)).toEqual([]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('returns an empty list when the library directory cannot be read', () => {
+    expect(scanLocalAudioFiles('/tmp/no-such-spotify-sync-library')).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Happy path
 // ---------------------------------------------------------------------------
 
@@ -185,7 +232,33 @@ describe('getStatus — happy path', () => {
     expect(counts?.pending).toBe(2); // track-p1, track-p2
     expect(counts?.failed).toBe(1); // track-f1
     expect(counts?.missingFiles).toBe(1); // missing-song.mp3 absent on disk
+    expect(counts?.untrackedFiles).toBe(0);
     expect(counts?.knownInPlaylist).toBe(5); // 2+2+1+0
+  });
+
+  it('reports local audio files not registered in the DB', async () => {
+    db.prepare('UPDATE tracks SET file_path = ? WHERE source_id = ?').run(
+      'manual-existing.m4a',
+      'track-p1',
+    );
+
+    const report = await getStatus({
+      cliFlags: VALID_CLI_FLAGS,
+      db,
+      runDoctorFn: async () => makeOkDoctorResult(),
+      fileExists: (path) => !path.includes('missing-song'),
+      scanLocalAudioFiles: () => [
+        'caro-emerald-back-it-up.mp3',
+        'manual-existing.m4a',
+        'missing-song.mp3',
+        'nested/manual-only.mp3',
+      ],
+    });
+
+    expect(report.library.counts?.untrackedFiles).toBe(1);
+    expect(report.library.untrackedFiles).toEqual(['nested/manual-only.mp3']);
+    expect(report.library.missingFiles).toHaveLength(1);
+    expect(report.library.missingFiles[0]?.title).toBe('Missing Song');
   });
 
   it('detects notYetSynced as liveTotal - knownInPlaylist', async () => {
