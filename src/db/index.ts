@@ -5,6 +5,7 @@ import { runMigrations } from './migrations.js';
 
 export type {
   DownloadedTrackRow,
+  ImportTargetRow,
   MarkDownloadedParams,
   MarkFailedParams,
   StatusTrackRow,
@@ -14,6 +15,7 @@ export type {
 } from './tracks.js';
 export {
   countTracksByStatus,
+  getImportTarget,
   incrementAttempts,
   listDownloadedTracks,
   listPendingTracks,

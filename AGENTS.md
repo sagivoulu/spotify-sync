@@ -118,6 +118,7 @@ src/
 ├── db/                # SQLite state via better-sqlite3; migrations; PRAGMA foreign_keys ON
 ├── config/            # Config loading, XDG paths, env/flag/file precedence
 ├── library/           # Filename sanitization, collision resolution, atomic file placement (WES-11)
+├── import/            # Manual file import/replacement workflow for existing source tracks (WES-17)
 └── tagging/           # ID3 read/write
 
 bin/

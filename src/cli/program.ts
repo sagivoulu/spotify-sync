@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { runAuthCommand } from './auth.js';
 import { runDoctorCommand } from './doctor.js';
+import { runImportCommand } from './import.js';
 import { runStatusCommand } from './status.js';
 import { runSyncCommand } from './sync.js';
 
@@ -139,8 +140,21 @@ export function buildProgram(): Command {
     .requiredOption('--for <track-id>', 'Spotify track ID this file resolves')
     .option('--move', 'Move the file instead of copying it (default: copy)')
     .option('--json', 'Output as JSON')
-    .action(() => {
-      console.log('import: not yet implemented');
+    .action(async function (this: Command, file: string) {
+      const opts = this.optsWithGlobals<{
+        for: string;
+        move: boolean;
+        json: boolean;
+        libraryPath?: string;
+        dbPath?: string;
+      }>();
+      await runImportCommand({
+        filePath: file,
+        trackId: opts.for,
+        move: opts.move ?? false,
+        json: opts.json ?? false,
+        globals: { libraryPath: opts.libraryPath, dbPath: opts.dbPath },
+      });
     });
 
   return program;
