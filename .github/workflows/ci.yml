@@ -130,16 +130,23 @@ jobs:
 
           # If Spotify rotated the refresh_token, update the GitHub secret so the
           # next run doesn't fail with 400 invalid_grant.
+          # NOTE: this block is wrapped in `|| true` so a PAT permission failure
+          # does NOT abort the step — integration tests must still run even if the
+          # secret can't be updated. A warning annotation is emitted instead.
           if [ -n "$NEW_REFRESH" ] && [ "$NEW_REFRESH" != "$SPOTIFY_REFRESH_TOKEN" ]; then
-            echo "Spotify rotated the refresh token — updating SPOTIFY_REFRESH_TOKEN secret…"
+            echo "Spotify rotated the refresh token — attempting to update SPOTIFY_REFRESH_TOKEN secret…"
             if [ -z "${GH_SECRETS_PAT:-}" ]; then
               echo "::warning::GH_SECRETS_PAT is not set — cannot auto-update SPOTIFY_REFRESH_TOKEN."
               echo "::warning::The next CI run will fail until SPOTIFY_REFRESH_TOKEN is updated manually."
-              echo "::warning::Add a fine-grained PAT with Secrets:write as GH_SECRETS_PAT."
+              echo "::warning::Add a classic PAT (repo scope) or fine-grained PAT (Secrets:write) as GH_SECRETS_PAT."
             else
-              echo "$NEW_REFRESH" | gh secret set SPOTIFY_REFRESH_TOKEN \
-                --repo "$GITHUB_REPOSITORY"
-              echo "SPOTIFY_REFRESH_TOKEN secret updated for the next run."
+              if echo "$NEW_REFRESH" | gh secret set SPOTIFY_REFRESH_TOKEN \
+                  --repo "$GITHUB_REPOSITORY"; then
+                echo "SPOTIFY_REFRESH_TOKEN secret updated for the next run."
+              else
+                echo "::warning::Failed to update SPOTIFY_REFRESH_TOKEN secret (PAT may lack Secrets:write permission)."
+                echo "::warning::The next CI run will fail. Re-run 'spotify-sync auth' locally and update the secret manually."
+              fi
             fi
           else
             echo "No token rotation — existing SPOTIFY_REFRESH_TOKEN remains valid."
