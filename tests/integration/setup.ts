@@ -6,29 +6,30 @@ import { fileURLToPath } from 'node:url';
 // ---------------------------------------------------------------------------
 // Global setup — runs ONCE in the main process before any test worker starts.
 //
-// Two responsibilities:
+// Token acquisition strategy:
 //
-// 1. Validate env vars — fail loudly with a list of missing names so the
-//    error is immediately actionable (no silent skips per AC).
+//   LOCAL DEV (INTEGRATION_SPOTIFY_ACCESS_TOKEN set):
+//     Use the access_token directly — no refresh call, no rotation risk.
+//     Workflow: export INTEGRATION_SPOTIFY_ACCESS_TOKEN from auth.json before
+//     running tests.  See docs/integration-tests.md for the one-liner.
 //
-// 2. Pre-refresh the Spotify token — this is the critical architectural fix
-//    for refresh-token rotation.
+//   CI (SPOTIFY_REFRESH_TOKEN set; INTEGRATION_SPOTIFY_ACCESS_TOKEN not set):
+//     The CI workflow already refreshed the token in a dedicated step, stored
+//     the result in INTEGRATION_SPOTIFY_ACCESS_TOKEN, and (if Spotify rotated
+//     the refresh_token) updated the GitHub secret for the next run.
+//     setup.ts falls through to the same INTEGRATION_SPOTIFY_ACCESS_TOKEN path
+//     once that step has run.
 //
-//    Problem: each test creates an isolated sandbox and seeds auth.json with
-//    the static SPOTIFY_REFRESH_TOKEN.  If Spotify rotates the refresh token
-//    on the first use (issuing a new one and revoking the original), every
-//    subsequent test that also seeds the original token gets a 400 invalid_grant.
+// WHY the separation:
+//   Spotify rotates PKCE refresh tokens on every call to the token endpoint.
+//   If local test runs call the refresh endpoint with the same token stored in
+//   GitHub Actions secrets, CI breaks the next run.  Separating local dev
+//   (access_token, no refresh call) from CI (refresh in a CI step that also
+//   self-updates the secret) prevents that.
 //
-//    Fix: refresh the token ONCE here, store the result in a temp file, and set
-//    INTEGRATION_TOKEN_CACHE_PATH so all test workers (forked after this setup
-//    runs, so they inherit process.env) find the cached token via seedAuth.
-//    Since access_tokens are valid for 1 hour and integration runs take <10 min,
-//    no test will need to refresh mid-run — so only this single rotation event
-//    matters per CI run.
-//
-//    If the refresh itself fails (e.g. token revoked), setup throws immediately
-//    with a clear message pointing to the re-mint steps in the docs rather than
-//    letting each test fail independently with a cryptic 400.
+// The obtained token is written to a temp file and its path exposed via
+// INTEGRATION_TOKEN_CACHE_PATH so all test worker processes (forked after
+// this setup runs and therefore inheriting process.env) share it.
 // ---------------------------------------------------------------------------
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -36,7 +37,6 @@ const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const REQUIRED_ENV_VARS: string[] = [
   'SPOTIFY_CLIENT_ID',
   'SPOTIFY_CLIENT_SECRET',
-  'SPOTIFY_REFRESH_TOKEN',
   'SPOTIFY_PLAYLIST_URL',
   'SPOTIFY_PLAYLIST_URL_SUBSET',
 ];
@@ -44,7 +44,7 @@ const REQUIRED_ENV_VARS: string[] = [
 const TOKEN_CACHE_PATH = resolve(tmpdir(), `spotify-sync-it-token-${process.pid}.json`);
 
 export async function setup(): Promise<void> {
-  // 1. Validate env vars
+  // 1. Validate always-required env vars
   const missing = REQUIRED_ENV_VARS.filter((k) => !process.env[k]);
   if (missing.length > 0) {
     throw new Error(
@@ -66,52 +66,40 @@ export async function setup(): Promise<void> {
     );
   }
 
-  // 3. Pre-refresh the Spotify token (once per test run)
-  console.log('[integration setup] Refreshing Spotify token…');
-  const body = new URLSearchParams({
-    grant_type: 'refresh_token',
-    refresh_token: process.env.SPOTIFY_REFRESH_TOKEN!,
-    client_id: process.env.SPOTIFY_CLIENT_ID!,
-  });
+  // 3. Obtain/validate a Spotify access_token
+  const accessToken = process.env.INTEGRATION_SPOTIFY_ACCESS_TOKEN;
+  const expiresAt = process.env.INTEGRATION_SPOTIFY_ACCESS_TOKEN_EXPIRES_AT;
 
-  const response = await fetch('https://accounts.spotify.com/api/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: body.toString(),
-  });
-
-  if (!response.ok) {
-    const text = await response.text().catch(() => '(no body)');
+  if (!accessToken) {
+    // Neither local-dev token nor CI pre-refresh token is set.
     throw new Error(
       [
-        `Spotify token refresh failed (${response.status}): ${text}`,
+        'No Spotify access token available.',
         '',
-        'The SPOTIFY_REFRESH_TOKEN is invalid or revoked.',
-        'To fix: run `spotify-sync auth` locally, copy the new refresh_token from',
-        '  ~/.config/spotify-sync/auth.json',
-        'then update the SPOTIFY_REFRESH_TOKEN GitHub Actions secret.',
-        'See docs/integration-tests.md → "Minting a refresh token".',
+        'For LOCAL development, export the access_token from your existing auth:',
+        '  source <(node scripts/export-test-token.js)',
+        '  (or see docs/integration-tests.md → "Local development")',
+        '',
+        'For CI, ensure the "Refresh Spotify token" workflow step ran before this job.',
       ].join('\n'),
     );
   }
 
-  const data = (await response.json()) as {
-    access_token: string;
-    refresh_token?: string;
-    expires_in: number;
-    token_type: string;
-    scope: string;
-  };
+  const expiresAtMs = expiresAt ? Number(expiresAt) : Date.now() + 3_600_000;
 
-  const obtainedAt = Date.now();
+  console.log('[integration setup] Using provided access_token, writing to cache…');
+
   const token = {
-    access_token: data.access_token,
-    // Carry forward the original if Spotify omits a new one (no rotation).
-    refresh_token: data.refresh_token ?? process.env.SPOTIFY_REFRESH_TOKEN!,
-    expires_at: obtainedAt + data.expires_in * 1000,
-    token_type: data.token_type ?? 'Bearer',
-    scope: data.scope,
-    obtained_at: obtainedAt,
+    access_token: accessToken,
+    // Refresh tokens are managed by the CI workflow step (not by setup.ts).
+    // The binary won't try to refresh during a run: expires_at is at least an
+    // hour from now, so the proactive-refresh guard (now >= expires_at - 60 s)
+    // stays false for the entire test run.
+    refresh_token: 'managed-by-ci-workflow',
+    expires_at: expiresAtMs,
+    token_type: 'Bearer',
+    scope: 'playlist-read-private playlist-read-collaborative',
+    obtained_at: Date.now(),
   };
 
   writeFileSync(TOKEN_CACHE_PATH, JSON.stringify(token, null, 2), {
@@ -119,11 +107,11 @@ export async function setup(): Promise<void> {
     mode: 0o600,
   });
 
-  // Expose to test workers — forks inherit process.env from the main process,
-  // so this value is visible in all seedAuth() calls during this run.
+  // Expose to test workers via process.env (forked workers inherit from parent).
   process.env.INTEGRATION_TOKEN_CACHE_PATH = TOKEN_CACHE_PATH;
 
-  console.log('[integration setup] Token cached, expires_in:', data.expires_in, 's');
+  const remainingMinutes = ((expiresAtMs - Date.now()) / 60_000).toFixed(1);
+  console.log(`[integration setup] Token cached (${remainingMinutes} min remaining, path: ${TOKEN_CACHE_PATH})`);
 }
 
 export async function teardown(): Promise<void> {
