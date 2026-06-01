@@ -9,6 +9,7 @@
 import { BackendError } from '../backend/types.js';
 import type {
   AudioFormat,
+  BackendOperationOptions,
   Candidate,
   DownloadBackend,
   DownloadResult,
@@ -55,8 +56,18 @@ export function createFakeBackend(opts: FakeBackendOpts = {}): DownloadBackend {
   return {
     name: 'fake',
 
-    async search(_query: SearchQuery): Promise<Candidate[]> {
+    async search(_query: SearchQuery, opts?: BackendOperationOptions): Promise<Candidate[]> {
+      opts?.log?.({
+        binary: 'yt-dlp',
+        stream: 'stdout',
+        chunk: 'fake yt-dlp search stdout\n',
+      });
       if (searchError !== undefined) {
+        opts?.log?.({
+          binary: 'yt-dlp',
+          stream: 'stderr',
+          chunk: 'fake yt-dlp search stderr\n',
+        });
         throw new BackendError(searchError, 'fake stderr', 1);
       }
       return searchResults ?? [DEFAULT_CANDIDATE];
@@ -65,7 +76,13 @@ export function createFakeBackend(opts: FakeBackendOpts = {}): DownloadBackend {
     async download(
       candidate: Candidate,
       opts: { outPath: string; format: AudioFormat },
+      operationOpts?: BackendOperationOptions,
     ): Promise<DownloadResult> {
+      operationOpts?.log?.({
+        binary: 'yt-dlp',
+        stream: 'stderr',
+        chunk: 'fake download stderr',
+      });
       if (downloadResult !== undefined) {
         return downloadResult;
       }
@@ -74,7 +91,9 @@ export function createFakeBackend(opts: FakeBackendOpts = {}): DownloadBackend {
         filePath: `${opts.outPath}.${opts.format.codec}`,
         candidate,
         backend: 'fake',
+        stdout: '',
         stderr: 'fake download stderr',
+        exitCode: 0,
       };
     },
   };

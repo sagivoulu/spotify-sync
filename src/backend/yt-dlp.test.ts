@@ -188,6 +188,28 @@ describe('YtDlpBackend.search', () => {
     expect(results).toHaveLength(1);
     expect(results[0]?.url).toBe('https://www.youtube.com/watch?v=abc123');
   });
+
+  it('forwards raw subprocess chunks to the operation log sink', async () => {
+    const chunks: Array<{ binary: string; stream: 'stdout' | 'stderr'; chunk: string }> = [];
+    const runner: SubprocessRunner = async (binary, _args, opts) => {
+      opts?.log?.({ binary, stream: 'stdout', chunk: FAKE_YT_DUMP });
+      opts?.log?.({ binary, stream: 'stderr', chunk: 'fake warning' });
+      return { stdout: FAKE_YT_DUMP, stderr: 'fake warning', code: 0 };
+    };
+
+    const backend = createYtDlpBackend({ runner });
+    await backend.search(
+      { artist: 'A', title: 'B' },
+      {
+        log: (chunk) => chunks.push(chunk),
+      },
+    );
+
+    expect(chunks).toEqual([
+      { binary: 'yt-dlp', stream: 'stdout', chunk: FAKE_YT_DUMP },
+      { binary: 'yt-dlp', stream: 'stderr', chunk: 'fake warning' },
+    ]);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -204,7 +226,12 @@ describe('YtDlpBackend.download', () => {
 
   it('returns success:true with filePath = outPath + .mp3 on exit 0', async () => {
     const backend = createYtDlpBackend({
-      runner: makeRunner({ stdout: '', stderr: 'yt-dlp progress output', code: 0 }),
+      runner: makeRunner({
+        stdout: 'yt-dlp stdout',
+        stderr: 'yt-dlp progress output',
+        code: 0,
+        durationMs: 42,
+      }),
     });
 
     const result = await backend.download(FAKE_CANDIDATE, {
@@ -217,6 +244,9 @@ describe('YtDlpBackend.download', () => {
       expect(result.filePath).toBe('/tmp/test-track.mp3');
       expect(result.backend).toBe('yt-dlp');
       expect(result.candidate).toBe(FAKE_CANDIDATE);
+      expect(result.stdout).toBe('yt-dlp stdout');
+      expect(result.exitCode).toBe(0);
+      expect(result.durationMs).toBe(42);
       // stderr is included even on success (yt-dlp writes progress/warnings there).
       expect(result.stderr).toBe('yt-dlp progress output');
     }
@@ -239,7 +269,35 @@ describe('YtDlpBackend.download', () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error).toContain('This video is unavailable');
+      expect(result.stderr).toBe('ERROR: This video is unavailable.');
+      expect(result.exitCode).toBe(1);
     }
+  });
+
+  it('forwards raw download subprocess chunks to the operation log sink', async () => {
+    const chunks: Array<{ binary: string; stream: 'stdout' | 'stderr'; chunk: string }> = [];
+    const runner: SubprocessRunner = async (binary, _args, opts) => {
+      opts?.log?.({ binary, stream: 'stdout', chunk: 'download stdout' });
+      opts?.log?.({ binary, stream: 'stderr', chunk: 'download stderr' });
+      return { stdout: 'download stdout', stderr: 'download stderr', code: 0 };
+    };
+    const backend = createYtDlpBackend({ runner });
+
+    await backend.download(
+      FAKE_CANDIDATE,
+      {
+        outPath: '/tmp/test-track',
+        format: { codec: 'mp3', bitrateKbps: 320 },
+      },
+      {
+        log: (chunk) => chunks.push(chunk),
+      },
+    );
+
+    expect(chunks).toEqual([
+      { binary: 'yt-dlp', stream: 'stdout', chunk: 'download stdout' },
+      { binary: 'yt-dlp', stream: 'stderr', chunk: 'download stderr' },
+    ]);
   });
 
   it('includes --audio-quality flag for mp3 with bitrate', async () => {

@@ -50,7 +50,7 @@ export const configSchema = z.object({
       level: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
       /**
        * Maximum number of per-run log files to keep in the logs dir.
-       * Oldest files (by numeric runId) are pruned at the start of each sync.
+       * Oldest files (by mtime) are pruned at the start of each sync.
        */
       max_run_logs: z.coerce.number().int().positive().default(20),
     }),

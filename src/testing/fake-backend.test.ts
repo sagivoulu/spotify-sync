@@ -64,7 +64,34 @@ describe('createFakeBackend', () => {
       expect(result.filePath).toBe('/music/track.mp3');
       expect(result.backend).toBe('fake');
       expect(result.candidate).toBe(candidate);
+      expect(result.exitCode).toBe(0);
     }
+  });
+
+  it('forwards fake subprocess output to the operation log sink', async () => {
+    const backend = createFakeBackend();
+    const chunks: Array<{ binary: string; stream: 'stdout' | 'stderr'; chunk: string }> = [];
+    const candidate = { url: 'https://yt.com/watch?v=1', sourceLabel: 'youtube' };
+
+    await backend.search(
+      { artist: 'A', title: 'B' },
+      {
+        log: (chunk) => chunks.push(chunk),
+      },
+    );
+    await backend.download(
+      candidate,
+      {
+        outPath: '/music/track',
+        format: { codec: 'mp3', bitrateKbps: 320 },
+      },
+      {
+        log: (chunk) => chunks.push(chunk),
+      },
+    );
+
+    expect(chunks.map((chunk) => chunk.chunk).join('')).toContain('fake yt-dlp search stdout');
+    expect(chunks.map((chunk) => chunk.chunk).join('')).toContain('fake download stderr');
   });
 
   it('download returns the override downloadResult when set', async () => {
