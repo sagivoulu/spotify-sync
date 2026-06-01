@@ -276,6 +276,7 @@ export function createYtDlpBackend(opts: YtDlpBackendOpts = {}): DownloadBackend
           filePath: `${outPath}.${format.codec}`,
           candidate,
           backend: 'yt-dlp',
+          stderr,
         };
       } catch (err) {
         // OS-level errors (e.g. ENOENT — yt-dlp not installed). Return as failure

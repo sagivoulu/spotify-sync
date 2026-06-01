@@ -74,6 +74,7 @@ export function createFakeBackend(opts: FakeBackendOpts = {}): DownloadBackend {
         filePath: `${opts.outPath}.${opts.format.codec}`,
         candidate,
         backend: 'fake',
+        stderr: 'fake download stderr',
       };
     },
   };

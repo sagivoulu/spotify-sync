@@ -9,6 +9,8 @@ import { initDb } from '../db/index.js';
 import { registerLibrary } from '../db/index.js';
 import { runMigrations } from '../db/migrations.js';
 import { checkFfmpeg, checkYtDlp } from '../doctor/checks.js';
+import { createNoopRunLogger } from '../logging/index.js';
+import type { RunLogger } from '../logging/index.js';
 import type { SpotifyClient, SpotifyTrack } from '../spotify/index.js';
 import { createFakeBackend } from '../testing/fake-backend.js';
 import { FatalSyncError, runSync } from './index.js';
@@ -39,7 +41,7 @@ function makeConfig(overrides: Partial<Config> = {}): Config {
       retry_count: 3,
       search_source: 'youtube-music',
     },
-    logging: { level: 'info' },
+    logging: { level: 'info', max_run_logs: 20 },
     ...overrides,
   };
 }
@@ -117,7 +119,43 @@ function makeOpts(config: Config, tracks: SpotifyTrack[], backendOpts = {}) {
     fileExists: () => true,
     now: () => '2026-05-30T10:00:00.000Z',
     tmpDir: '/tmp',
+    // Inject a noop logger so tests don't create files in the real XDG state dir.
+    createRunLogger: (_runId, _runUuid) => createNoopRunLogger(),
   };
+}
+
+/**
+ * Create a recording RunLogger that captures all log calls for assertions.
+ * Returns the logger and the entries it has recorded.
+ */
+function makeRecordingLogger(): {
+  logger: RunLogger;
+  closed: boolean;
+  entries: Array<{ level: 'info' | 'warn' | 'error'; obj: Record<string, unknown>; msg?: string }>;
+} {
+  const entries: Array<{
+    level: 'info' | 'warn' | 'error';
+    obj: Record<string, unknown>;
+    msg?: string;
+  }> = [];
+  let closed = false;
+  const logger: RunLogger = {
+    info: (obj, msg) => entries.push({ level: 'info', obj, msg }),
+    warn: (obj, msg) => entries.push({ level: 'warn', obj, msg }),
+    error: (obj, msg) => entries.push({ level: 'error', obj, msg }),
+    close: () => {
+      closed = true;
+      return Promise.resolve();
+    },
+  };
+  const result = {
+    logger,
+    entries,
+    get closed() {
+      return closed;
+    },
+  };
+  return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -305,6 +343,7 @@ describe('runSync — concurrency', () => {
           filePath: `${opts.outPath}.mp3`,
           candidate: { url: 'https://yt.com/watch?v=fake', sourceLabel: 'youtube' },
           backend: 'instrumented',
+          stderr: '',
         };
       },
     };
@@ -353,6 +392,7 @@ describe('runSync — idempotent re-run', () => {
           filePath: `${opts.outPath}.mp3`,
           candidate,
           backend: 'fake',
+          stderr: '',
         };
       },
     };
@@ -699,7 +739,13 @@ describe('runSync — missing file re-download', () => {
         opts: Parameters<ReturnType<typeof createFakeBackend>['download']>[1],
       ): Promise<DownloadResult> {
         downloadCalls++;
-        return { success: true, filePath: `${opts.outPath}.mp3`, candidate, backend: 'fake' };
+        return {
+          success: true,
+          filePath: `${opts.outPath}.mp3`,
+          candidate,
+          backend: 'fake',
+          stderr: '',
+        };
       },
     };
 
@@ -751,6 +797,7 @@ describe('runSync — sync_runs tracking', () => {
       tagFileFn: noopTagFile,
       placeFileFn: noopPlaceFile,
       now: () => '2026-05-30T10:00:00.000Z',
+      createRunLogger: (_runId, _runUuid) => createNoopRunLogger(),
     });
 
     const row = db
@@ -759,6 +806,107 @@ describe('runSync — sync_runs tracking', () => {
 
     expect(row.started_at).toBeTruthy();
     expect(row.finished_at).toBeTruthy();
+    db.close();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Per-run logging behaviour
+// ---------------------------------------------------------------------------
+
+describe('runSync — per-run logging', () => {
+  it('calls logger.close() after a successful run', async () => {
+    const config = makeConfig();
+    const track = makeTrack();
+    const recording = makeRecordingLogger();
+
+    const opts = makeOpts(config, [track]);
+    await runSync({ ...opts, createRunLogger: (_runId, _runUuid) => recording.logger });
+
+    expect(recording.closed).toBe(true);
+    opts.db.close();
+  });
+
+  it('logs download-success with stderr from the backend result', async () => {
+    const config = makeConfig();
+    const track = makeTrack();
+    const recording = makeRecordingLogger();
+
+    const opts = makeOpts(config, [track]);
+    await runSync({ ...opts, createRunLogger: (_runId, _runUuid) => recording.logger });
+
+    const successEntry = recording.entries.find((e) => e.msg === 'download-success');
+    expect(successEntry).toBeDefined();
+    // The fake backend returns 'fake download stderr' as the success stderr.
+    expect(successEntry?.obj.stderr).toBe('fake download stderr');
+    opts.db.close();
+  });
+
+  it('logs download-failed with error string when download returns success:false', async () => {
+    const config = makeConfig({ download: { ...makeConfig().download, retry_count: 1 } });
+    const track = makeTrack();
+    const recording = makeRecordingLogger();
+
+    const opts = makeOpts(config, [track], {
+      downloadResult: { success: false, error: 'yt-dlp: HTTP 429 rate limited' } as DownloadResult,
+    });
+    await runSync({ ...opts, createRunLogger: (_runId, _runUuid) => recording.logger });
+
+    const failEntry = recording.entries.find((e) => e.msg === 'download-failed');
+    expect(failEntry).toBeDefined();
+    expect(failEntry?.obj.error).toBe('yt-dlp: HTTP 429 rate limited');
+    opts.db.close();
+  });
+
+  it('logs search-error with stderr when search throws BackendError', async () => {
+    const config = makeConfig({ download: { ...makeConfig().download, retry_count: 1 } });
+    const track = makeTrack();
+    const recording = makeRecordingLogger();
+
+    const opts = makeOpts(config, [track], { searchError: 'Sign in to confirm' });
+    await runSync({ ...opts, createRunLogger: (_runId, _runUuid) => recording.logger });
+
+    const searchErrEntry = recording.entries.find((e) => e.msg === 'search-error');
+    expect(searchErrEntry).toBeDefined();
+    expect(searchErrEntry?.obj.stderr).toBe('fake stderr');
+    opts.db.close();
+  });
+
+  it('logs track-failed (error level) after all retry attempts exhausted', async () => {
+    const config = makeConfig({ download: { ...makeConfig().download, retry_count: 2 } });
+    const track = makeTrack();
+    const recording = makeRecordingLogger();
+
+    const opts = makeOpts(config, [track], {
+      downloadResult: { success: false, error: 'timeout' } as DownloadResult,
+    });
+    await runSync({ ...opts, createRunLogger: (_runId, _runUuid) => recording.logger });
+
+    const failedEntry = recording.entries.find((e) => e.msg === 'track-failed');
+    expect(failedEntry).toBeDefined();
+    expect(failedEntry?.level).toBe('error');
+    expect(failedEntry?.obj.attempts).toBe(2);
+    opts.db.close();
+  });
+
+  it('logs run-start and run-finish entries', async () => {
+    const config = makeConfig();
+    const recording = makeRecordingLogger();
+
+    const db = makeInitDb(config);
+    await runSync({
+      config,
+      db,
+      spotifyClient: makeSpotifyClient([]),
+      backend: createFakeBackend(),
+      tagFileFn: noopTagFile,
+      placeFileFn: noopPlaceFile,
+      now: () => '2026-05-30T10:00:00.000Z',
+      createRunLogger: (_runId, _runUuid) => recording.logger,
+    });
+
+    expect(recording.entries.some((e) => e.msg === 'run-start')).toBe(true);
+    expect(recording.entries.some((e) => e.msg === 'run-finish')).toBe(true);
     db.close();
   });
 });

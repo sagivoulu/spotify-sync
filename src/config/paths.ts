@@ -58,3 +58,35 @@ export function defaultDataDir(env: Env = process.env): string {
 export function defaultDbPath(dataDir: string): string {
   return join(dataDir, 'db.sqlite');
 }
+
+/**
+ * Returns the spotify-sync state directory.
+ * Respects $XDG_STATE_HOME; falls back to ~/.local/state on all platforms.
+ * e.g. ~/.local/state/spotify-sync
+ *
+ * XDG state is the right base for per-run log files (transient runtime data that
+ * should survive reboots but is not user-portable config or application data).
+ */
+export function defaultStateDir(env: Env = process.env): string {
+  const base = env.XDG_STATE_HOME ?? join(homedir(), '.local', 'state');
+  return join(base, 'spotify-sync');
+}
+
+/**
+ * Returns the directory where per-run log files are stored.
+ * e.g. ~/.local/state/spotify-sync/logs
+ */
+export function logsDir(env: Env = process.env): string {
+  return join(defaultStateDir(env), 'logs');
+}
+
+/**
+ * Returns the full path for a specific sync run's log file.
+ * e.g. ~/.local/state/spotify-sync/logs/550e8400-e29b-41d4-a716-446655440000.log
+ *
+ * The logId is a UUID v4 generated at run start — globally unique so filenames
+ * never collide even when the database is reset.
+ */
+export function runLogPath(logId: string, env: Env = process.env): string {
+  return join(logsDir(env), `${logId}.log`);
+}
