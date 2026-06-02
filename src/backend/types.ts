@@ -39,20 +39,50 @@ export interface Candidate {
   title?: string;
 }
 
+export interface SubprocessLogChunk {
+  binary: string;
+  stream: 'stdout' | 'stderr';
+  chunk: string;
+}
+
+export type SubprocessLogSink = (chunk: SubprocessLogChunk) => void;
+
+export interface BackendOperationOptions {
+  /** Receives raw subprocess stdout/stderr chunks for routing to the run log. */
+  log?: SubprocessLogSink;
+}
+
 export type DownloadResult =
   | {
       success: true;
       filePath: string;
       candidate: Candidate;
       backend: string;
+      /** Raw stdout captured from the subprocess, even when also streamed to a log sink. */
+      stdout?: string;
       /**
        * Raw stderr captured from the subprocess, even on success.
        * yt-dlp writes progress/warning lines to stderr regardless of exit code;
        * the sync pipeline forwards this to the per-run log file.
        */
       stderr: string;
+      /** Process exit code when the subprocess ran to completion. */
+      exitCode?: number;
+      /** Wall-clock duration of the subprocess call in milliseconds. */
+      durationMs?: number;
     }
-  | { success: false; error: string };
+  | {
+      success: false;
+      error: string;
+      /** Raw stdout captured from the subprocess, if the subprocess started. */
+      stdout?: string;
+      /** Raw stderr captured from the subprocess, if the subprocess started. */
+      stderr?: string;
+      /** Process exit code, or null for OS-level spawn failures such as ENOENT. */
+      exitCode?: number | null;
+      /** Wall-clock duration of the subprocess call in milliseconds. */
+      durationMs?: number;
+    };
 
 export interface DownloadBackend {
   /**
@@ -69,7 +99,7 @@ export interface DownloadBackend {
    *
    * Throws BackendError when the underlying subprocess exits non-zero unexpectedly.
    */
-  search(query: SearchQuery): Promise<Candidate[]>;
+  search(query: SearchQuery, opts?: BackendOperationOptions): Promise<Candidate[]>;
 
   /**
    * Download the given candidate to outPath.
@@ -77,12 +107,13 @@ export interface DownloadBackend {
    * Never throws — subprocess failures are captured and returned as
    * { success: false, error }. On success, raw stderr is included in the
    * result (yt-dlp writes progress/warnings to stderr even on code 0).
-   * Neither case prints to the console — the sync pipeline writes stderr to
-   * the per-run log file.
+   * Neither case prints to the console — the sync pipeline writes stdout/stderr
+   * to the per-run log file.
    */
   download(
     candidate: Candidate,
     opts: { outPath: string; format: AudioFormat },
+    operationOpts?: BackendOperationOptions,
   ): Promise<DownloadResult>;
 }
 

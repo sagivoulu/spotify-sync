@@ -12,6 +12,8 @@
 export interface RunStartEvent {
   type: 'run-start';
   runId: number;
+  /** Per-run verbose log file path for subprocess output and structured run details. */
+  logPath: string;
   libraryPath: string;
   concurrency: number;
   pendingCount: number;

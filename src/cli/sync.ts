@@ -59,6 +59,7 @@ export async function runSyncCommand(
 
     switch (event.type) {
       case 'run-start': {
+        process.stdout.write(`Logging to ${event.logPath}\n`);
         process.stdout.write(`Library: ${event.libraryPath}\n`);
         const restoredNote = event.restoredCount > 0 ? `, ${event.restoredCount} restored` : '';
         process.stdout.write(

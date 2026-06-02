@@ -28,6 +28,24 @@ function captureStderr(): { output: string; restore: () => void } {
   };
 }
 
+/** Capture writes to process.stdout during a test. */
+function captureStdout(): { output: string; restore: () => void } {
+  let output = '';
+  const original = process.stdout.write.bind(process.stdout);
+  process.stdout.write = (chunk: string | Uint8Array) => {
+    output += typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString();
+    return true;
+  };
+  return {
+    get output() {
+      return output;
+    },
+    restore: () => {
+      process.stdout.write = original;
+    },
+  };
+}
+
 describe('runSyncCommand — FatalSyncError → exit code 2', () => {
   const originalExitCode = process.exitCode;
 
@@ -97,5 +115,97 @@ describe('runSyncCommand — FatalSyncError → exit code 2', () => {
     expect(process.exitCode).toBe(2);
     // No JSON printed to stdout on fatal error
     expect(stdoutOutput).toBe('');
+  });
+});
+
+describe('runSyncCommand — log path output', () => {
+  const originalExitCode = process.exitCode;
+  const logPath = '/tmp/spotify-sync/logs/test-run.log';
+
+  afterEach(() => {
+    process.exitCode = originalExitCode;
+  });
+
+  it('prints the run log path once in human mode', async () => {
+    const stdout = captureStdout();
+
+    const deps: RunSyncCommandDeps = {
+      runSync: async ({ onEvent }) => {
+        onEvent?.({
+          type: 'run-start',
+          runId: 1,
+          logPath,
+          libraryPath: '/music/wcs',
+          concurrency: 3,
+          pendingCount: 1,
+          addedCount: 1,
+          removedMarkedCount: 0,
+          restoredCount: 0,
+        });
+        onEvent?.({
+          type: 'run-finish',
+          runId: 1,
+          added: 1,
+          downloaded: 1,
+          failed: 0,
+          removedMarked: 0,
+          ok: true,
+        });
+        return {
+          runId: 1,
+          logPath,
+          added: 1,
+          downloaded: 1,
+          failed: 0,
+          removedMarked: 0,
+          ok: true,
+        };
+      },
+    };
+
+    await runSyncCommand({ json: false, globals: {} }, deps);
+
+    stdout.restore();
+
+    expect(stdout.output.match(/Logging to /g)).toHaveLength(1);
+    expect(stdout.output).toContain(`Logging to ${logPath}`);
+    expect(process.exitCode).toBe(0);
+  });
+
+  it('includes logPath in JSON mode without event lines', async () => {
+    const stdout = captureStdout();
+
+    const deps: RunSyncCommandDeps = {
+      runSync: async ({ onEvent }) => {
+        onEvent?.({
+          type: 'run-start',
+          runId: 1,
+          logPath,
+          libraryPath: '/music/wcs',
+          concurrency: 3,
+          pendingCount: 1,
+          addedCount: 1,
+          removedMarkedCount: 0,
+          restoredCount: 0,
+        });
+        return {
+          runId: 1,
+          logPath,
+          added: 1,
+          downloaded: 1,
+          failed: 0,
+          removedMarked: 0,
+          ok: true,
+        };
+      },
+    };
+
+    await runSyncCommand({ json: true, globals: {} }, deps);
+
+    stdout.restore();
+
+    expect(stdout.output).not.toContain('Logging to');
+    expect(JSON.parse(stdout.output)).toMatchObject({ logPath });
+    expect(process.exitCode).toBe(0);
   });
 });

@@ -7,10 +7,13 @@
 
 export type {
   AudioFormat,
+  BackendOperationOptions,
   Candidate,
   DownloadBackend,
   DownloadResult,
   SearchQuery,
+  SubprocessLogChunk,
+  SubprocessLogSink,
 } from './types.js';
 export { BackendError } from './types.js';
 export type { SubprocessRunner, VersionResult } from './yt-dlp.js';

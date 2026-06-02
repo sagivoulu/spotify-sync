@@ -32,4 +32,12 @@ describe('buildProgram', () => {
     expect(portOpt).toBeDefined();
     expect(portOpt?.defaultValue).toBe('8888');
   });
+
+  it('prune command supports --dry-run and --yes', () => {
+    const program = buildProgram();
+    const prune = program.commands.find((cmd) => cmd.name() === 'prune');
+    expect(prune).toBeDefined();
+    expect(prune?.options.some((opt) => opt.long === '--dry-run')).toBe(true);
+    expect(prune?.options.some((opt) => opt.long === '--yes')).toBe(true);
+  });
 });
