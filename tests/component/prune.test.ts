@@ -6,29 +6,30 @@ import type { SyncResult } from '../../src/sync/index.js';
 import { getTracksByStatus, openSandboxDb } from './helpers/db.js';
 import { buildChildEnv } from './helpers/env.js';
 import { createFakeBins, type FakeBins } from './helpers/fake-bins.js';
+import { PLAYLIST_URL_SUBSET } from './helpers/fake-spotify-server.js';
 import { runCliJson } from './helpers/run-cli.js';
 import { createSandbox, type Sandbox } from './helpers/sandbox.js';
 import { seedAuth } from './helpers/seed-auth.js';
 
 // ---------------------------------------------------------------------------
-// prune integration test
+// prune component test
 //
 // Covers AC: "prune: removes a file whose track has been removed from the playlist"
 //
-// Strategy (no playlist editing required):
-//   1. Sync against FULL playlist (SPOTIFY_PLAYLIST_URL).
-//   2. Run `prune --yes` with the SUBSET playlist URL (SPOTIFY_PLAYLIST_URL_SUBSET).
-//      Prune re-fetches the SUBSET playlist; tracks in FULL but not SUBSET are
-//      `downloaded` in the DB and absent from the live playlist → prune candidates.
-//   3. Assert: prunedCount ≥ 1, files are gone from disk.
+// Flow:
+//   1. Sync against the FULL playlist (3 tracks) → all downloaded.
+//   2. Run `prune --yes` with the SUBSET playlist URL (2 tracks).
+//      Prune re-fetches the current playlist (SUBSET) and identifies track 3
+//      as a prune candidate: it's downloaded in the DB but absent from SUBSET.
+//   3. Assert: track 3's file is gone from disk, prunedCount ≥ 1.
 //
-// The FULL playlist must be a superset of SUBSET (i.e. SUBSET = FULL minus ≥1 track).
-// See docs/integration-tests.md for playlist setup instructions.
+// No playlist editing required — the fake server serves different track lists
+// based on the playlist ID embedded in the URL.
 // ---------------------------------------------------------------------------
 
 type PruneCommandJsonResult = PruneResult & { confirmed: boolean; aborted: boolean };
 
-const useRealDownloads = Boolean(process.env.INTEGRATION_REAL_DOWNLOADS);
+const useRealDownloads = Boolean(process.env.COMPONENT_REAL_DOWNLOADS);
 
 describe('prune', () => {
   let sandbox: Sandbox;
@@ -49,27 +50,26 @@ describe('prune', () => {
   });
 
   it('identifies and trashes files for tracks absent from the current playlist', async () => {
-    // Step 1: sync against the FULL playlist so all tracks are downloaded
+    // Step 1: sync all 3 tracks (FULL playlist is the default in buildChildEnv)
     const fullEnv = buildChildEnv(sandbox, fakeBins);
     const syncResult = await runCliJson<SyncResult>({ args: ['sync', '--json'], env: fullEnv });
     expect(syncResult.exitCode, `sync failed: ${syncResult.stderr}`).toBe(0);
     expect(syncResult.result.downloaded).toBeGreaterThanOrEqual(1);
 
-    // Collect file paths before pruning so we can assert they're gone
+    // Confirm all files exist before pruning
     const db = openSandboxDb(sandbox.dbPath);
     const downloadedBeforePrune = getTracksByStatus(db, 'downloaded');
     db.close();
     expect(downloadedBeforePrune.length).toBeGreaterThanOrEqual(1);
-    const filesBefore = downloadedBeforePrune
-      .filter((r) => r.file_path)
-      .map((r) => join(sandbox.libraryPath, r.file_path!));
-    expect(filesBefore.every((p) => existsSync(p))).toBe(true);
+    for (const row of downloadedBeforePrune) {
+      if (row.file_path) {
+        expect(existsSync(join(sandbox.libraryPath, row.file_path))).toBe(true);
+      }
+    }
 
-    // Step 2: run prune with the SUBSET playlist URL.
-    // Prune re-fetches SUBSET, finds tracks in FULL\SUBSET as prune candidates,
-    // and with --yes trashes their files immediately.
+    // Step 2: prune with SUBSET playlist (track 3 is absent → prune candidate)
     const subsetEnv = buildChildEnv(sandbox, fakeBins, {
-      SPOTIFY_SYNC_SPOTIFY_PLAYLIST_URL: process.env.SPOTIFY_PLAYLIST_URL_SUBSET!,
+      SPOTIFY_SYNC_SPOTIFY_PLAYLIST_URL: PLAYLIST_URL_SUBSET,
     });
     const pruneResult = await runCliJson<PruneCommandJsonResult>({
       args: ['prune', '--yes', '--json'],
@@ -82,7 +82,7 @@ describe('prune', () => {
     expect(pruneResult.result.prunedCount).toBeGreaterThanOrEqual(1);
     expect(pruneResult.result.failedCount).toBe(0);
 
-    // Step 3: trashed files must no longer exist at their original absolute paths
+    // Step 3: trashed files must not exist at their original library paths
     for (const outcome of pruneResult.result.outcomes) {
       if (outcome.status === 'trashed') {
         expect(

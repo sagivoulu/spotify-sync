@@ -183,6 +183,19 @@ export interface SpotifyClientDeps {
    * Tests inject a fixed timestamp to exercise expiry logic without real waits.
    */
   now?: () => number;
+  /**
+   * Override the Spotify API base URL (default: https://api.spotify.com).
+   *
+   * When set, all API calls made through wrappedFetch have their origin rewritten
+   * from https://api.spotify.com to this value. Used by the component test suite
+   * to redirect the client to a local fake Spotify HTTP server.
+   *
+   * Token-endpoint calls (refreshAccessToken via doRefresh) are NOT affected —
+   * they use baseFetch directly and therefore bypass wrappedFetch entirely.
+   * Component tests avoid token refreshes by seeding auth.json with a token
+   * whose expires_at is far in the future.
+   */
+  baseUrl?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -238,10 +251,35 @@ function mapPlaylistItem(item: SpotifyApiPlaylistItem): SpotifyTrack | null {
 // Factory
 // ---------------------------------------------------------------------------
 
+/**
+ * Rewrite the origin of a Spotify API URL to a custom base URL.
+ *
+ * Replaces protocol + hostname + port while keeping the path and query string.
+ * Used by the component test suite to redirect API calls to a local fake server.
+ */
+function rebaseSpotifyUrl(input: RequestInfo | URL, baseUrl: string): string {
+  let original: string;
+  if (typeof input === 'string') {
+    original = input;
+  } else if (input instanceof URL) {
+    original = input.href;
+  } else {
+    // Request object
+    original = (input as Request).url;
+  }
+  const url = new URL(original);
+  const override = new URL(baseUrl);
+  url.protocol = override.protocol;
+  url.hostname = override.hostname;
+  url.port = override.port;
+  return url.toString();
+}
+
 export function createSpotifyClient(deps: SpotifyClientDeps): SpotifyClient {
   const { clientId, onTokenRefreshed } = deps;
   const baseFetch = deps.fetchFn ?? fetch;
   const now = deps.now ?? (() => Date.now());
+  const { baseUrl } = deps;
 
   // Mutable — updated on every successful refresh.
   let current = deps.token;
@@ -272,6 +310,12 @@ export function createSpotifyClient(deps: SpotifyClientDeps): SpotifyClient {
     input: RequestInfo | URL,
     init?: RequestInit,
   ): Promise<Response> => {
+    // Rebase the request URL when a custom Spotify API base is configured.
+    // This lets the component test suite redirect API calls to a local fake server
+    // without any other changes. Token-endpoint calls go through baseFetch directly
+    // (see doRefresh) and are therefore not affected by this rewrite.
+    const resolvedInput = baseUrl ? rebaseSpotifyUrl(input, baseUrl) : input;
+
     // Proactive refresh: if the token expires within REFRESH_SKEW_MS, refresh now.
     if (now() >= current.expires_at - REFRESH_SKEW_MS) {
       await doRefresh();
@@ -281,7 +325,7 @@ export function createSpotifyClient(deps: SpotifyClientDeps): SpotifyClient {
     const headers = new Headers(init?.headers);
     headers.set('Authorization', `Bearer ${current.access_token}`);
 
-    const response = await baseFetch(input, { ...init, headers });
+    const response = await baseFetch(resolvedInput, { ...init, headers });
 
     if (response.status !== 401) {
       return response;
@@ -295,7 +339,7 @@ export function createSpotifyClient(deps: SpotifyClientDeps): SpotifyClient {
     }
 
     headers.set('Authorization', `Bearer ${current.access_token}`);
-    const retryResponse = await baseFetch(input, { ...init, headers });
+    const retryResponse = await baseFetch(resolvedInput, { ...init, headers });
 
     if (retryResponse.status === 401) {
       throw new Error('Re-authentication required. Run `spotify-sync auth`.');

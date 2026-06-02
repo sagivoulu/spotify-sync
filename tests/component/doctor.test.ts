@@ -7,15 +7,16 @@ import { createSandbox, type Sandbox } from './helpers/sandbox.js';
 import { seedAuth } from './helpers/seed-auth.js';
 
 // ---------------------------------------------------------------------------
-// doctor integration test
+// doctor component test
 //
 // Covers AC: "status / doctor: correct dependency detection and version output"
 //
-// Runs `spotify-sync doctor --json` against real Spotify and fake yt-dlp/ffmpeg.
-// All five checks (Config, Auth, yt-dlp, ffmpeg, Spotify) should pass.
+// Runs `spotify-sync doctor --json` against the fake Spotify server and fake
+// yt-dlp/ffmpeg. All five checks (Config, Auth, yt-dlp, ffmpeg, Spotify) should
+// pass without any real credentials or network access.
 // ---------------------------------------------------------------------------
 
-const useRealDownloads = Boolean(process.env.INTEGRATION_REAL_DOWNLOADS);
+const useRealDownloads = Boolean(process.env.COMPONENT_REAL_DOWNLOADS);
 
 describe('doctor', () => {
   let sandbox: Sandbox;
@@ -35,8 +36,11 @@ describe('doctor', () => {
     fakeBins = null;
   });
 
-  it('reports ok=true with all checks passing when setup is correct', async () => {
-    const { result, exitCode, stderr } = await runCliJson<{ ok: boolean; checks: CheckResult[] }>({
+  it('reports ok=true with all checks passing', async () => {
+    const { result, exitCode, stderr } = await runCliJson<{
+      ok: boolean;
+      checks: CheckResult[];
+    }>({
       args: ['doctor', '--json'],
       env: buildChildEnv(sandbox, fakeBins),
     });
@@ -56,9 +60,9 @@ describe('doctor', () => {
     const ffmpeg = result.checks.find((c) => c.name === 'ffmpeg');
     expect(ffmpeg?.data?.version).toBeTruthy();
 
-    // Spotify check carries playlist data
+    // Spotify check carries playlist data from the fake server
     const spotify = result.checks.find((c) => c.name === 'Spotify');
-    expect(spotify?.data?.playlistName).toBeTruthy();
-    expect(spotify?.data?.trackCount).toBeGreaterThan(0);
+    expect(spotify?.data?.playlistName).toBe('CI Component Test Playlist — Full');
+    expect(spotify?.data?.trackCount).toBe(3);
   });
 });

@@ -8,12 +8,12 @@ import { createSandbox, type Sandbox } from './helpers/sandbox.js';
 import { seedAuth } from './helpers/seed-auth.js';
 
 // ---------------------------------------------------------------------------
-// idempotency integration test
+// idempotency component test
 //
 // Covers AC: "a second sync run does not re-download an already-present track"
 // ---------------------------------------------------------------------------
 
-const useRealDownloads = Boolean(process.env.INTEGRATION_REAL_DOWNLOADS);
+const useRealDownloads = Boolean(process.env.COMPONENT_REAL_DOWNLOADS);
 
 describe('sync idempotency', () => {
   let sandbox: Sandbox;
@@ -40,17 +40,16 @@ describe('sync idempotency', () => {
     const first = await runCliJson<SyncResult>({ args: ['sync', '--json'], env });
     expect(first.exitCode, `first sync failed: ${first.stderr}`).toBe(0);
     expect(first.result.downloaded).toBeGreaterThanOrEqual(1);
-
     const downloadedAfterFirstSync = first.result.downloaded;
 
-    // Second sync — nothing should be re-downloaded
+    // Second sync — nothing new
     const second = await runCliJson<SyncResult>({ args: ['sync', '--json'], env });
     expect(second.exitCode, `second sync failed: ${second.stderr}`).toBe(0);
     expect(second.result.downloaded).toBe(0);
     expect(second.result.added).toBe(0);
     expect(second.result.failed).toBe(0);
 
-    // DB: all tracks are still downloaded, count unchanged
+    // DB: same number of downloaded rows, unchanged
     const db = openSandboxDb(sandbox.dbPath);
     try {
       const downloaded = getTracksByStatus(db, 'downloaded');

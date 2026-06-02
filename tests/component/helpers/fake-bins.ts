@@ -6,28 +6,26 @@ import { fileURLToPath } from 'node:url';
 // ---------------------------------------------------------------------------
 // FakeBins — hermetic yt-dlp and ffmpeg stand-ins.
 //
-// Used when INTEGRATION_REAL_DOWNLOADS is not set (the default in CI).
+// Used by default (skip when COMPONENT_REAL_DOWNLOADS=1 for opt-in real downloads).
 // Both scripts are plain CommonJS Node programs written to a temp directory
-// (outside the project, so they don't inherit "type": "module").
+// outside the project (so they don't inherit "type": "module" from package.json).
 //
 // Fake yt-dlp contract (mirrors src/backend/yt-dlp.ts expectations):
-//   --version              → stdout: YYYY.MM.DD date ≥ MINIMUM_YTDLP_VERSION; exit 0
-//   --dump-json [search]   → stdout: one JSON line with webpage_url/title/duration; exit 0
-//   -x -o <outPath> [dl]   → copy silence.mp3 fixture to <outPath>.mp3; exit 0
+//   --version              → stdout: YYYY.MM.DD ≥ MINIMUM_YTDLP_VERSION; exit 0
+//   --dump-json [search]   → stdout: one canned JSON object; exit 0
+//   -x -o <template> [dl]  → copy silence.mp3 fixture to <template>.mp3; exit 0
 //
-// Fake ffmpeg contract:
+// Fake ffmpeg:
 //   -version               → stdout: version line; exit 0
-//   (yt-dlp invokes ffmpeg internally for -x --audio-format; when yt-dlp is faked
-//    it never actually shells out to ffmpeg, so the fake only needs -version for
-//    the `doctor` check.)
+//   (yt-dlp invokes ffmpeg for audio conversion internally; the fake yt-dlp
+//    never actually shells out to ffmpeg, so only -version needs handling.)
 //
-// The path to silence.mp3 is injected via FAKE_YTDLP_FIXTURE_PATH in the child env.
+// The fake yt-dlp version (2026.06.01) is ≥ MINIMUM_YTDLP_VERSION (2026.01.01).
 // ---------------------------------------------------------------------------
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 export const SILENCE_MP3_FIXTURE = resolve(REPO_ROOT, 'src/tagging/fixtures/silence.mp3');
 
-// The fake version string must be ≥ MINIMUM_YTDLP_VERSION = '2026.01.01'
 const FAKE_YTDLP_VERSION = '2026.06.01';
 
 const FAKE_YTDLP_SCRIPT = `#!/usr/bin/env node
@@ -37,17 +35,15 @@ const path = require('node:path');
 
 const args = process.argv.slice(2);
 
-// --version probe (used by doctor and sync preflight)
 if (args.includes('--version')) {
   process.stdout.write('${FAKE_YTDLP_VERSION}\\n');
   process.exit(0);
 }
 
-// Search mode: --dump-json is present
 if (args.includes('--dump-json')) {
   process.stdout.write(JSON.stringify({
     webpage_url: 'https://www.youtube.com/watch?v=dGFSjKuJFrM',
-    title: 'Fake Integration Test Track',
+    title: 'Fake Component Test Track',
     duration: 30,
     extractor: 'youtube',
     extractor_key: 'Youtube',
@@ -55,7 +51,6 @@ if (args.includes('--dump-json')) {
   process.exit(0);
 }
 
-// Download mode: find -o arg, derive output path, copy fixture
 const oIdx = args.indexOf('-o');
 if (oIdx === -1 || oIdx + 1 >= args.length) {
   process.stderr.write('fake-yt-dlp: expected -o <outPath>.%(ext)s\\n');
@@ -80,30 +75,16 @@ process.exit(0);
 
 const FAKE_FFMPEG_SCRIPT = `#!/usr/bin/env node
 'use strict';
-// Respond to -version (used by doctor's ffmpeg check).
-// All other invocations (audio conversion) are irrelevant when yt-dlp is faked.
 process.stdout.write('ffmpeg version 6.1.1 Copyright (c) 2000-2023 the FFmpeg developers\\n');
 process.exit(0);
 `;
 
 export interface FakeBins {
-  /** Absolute path to the temp dir that contains the fake binaries. */
   binDir: string;
-  /**
-   * Env vars to merge into the child env:
-   *   PATH: binDir prepended so fake binaries shadow the real ones
-   *   FAKE_YTDLP_FIXTURE_PATH: path to silence.mp3 used as the "downloaded" file
-   */
   env: Record<string, string>;
-  /** Remove the temp dir. Call in afterEach. */
   teardown(): void;
 }
 
-/**
- * Create hermetic fake yt-dlp and ffmpeg binaries in a temp directory.
- *
- * Skip this and set INTEGRATION_REAL_DOWNLOADS=1 to use the real binaries.
- */
 export function createFakeBins(): FakeBins {
   const binDir = mkdtempSync(join(tmpdir(), 'spotify-sync-fake-bins-'));
 

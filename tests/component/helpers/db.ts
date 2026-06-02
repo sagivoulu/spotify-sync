@@ -1,10 +1,9 @@
 import Database from 'better-sqlite3';
 
 // ---------------------------------------------------------------------------
-// db helpers — open a sandbox SQLite DB and query it for test assertions.
-//
-// These helpers open the DB read-write so tests can also set up preconditions
-// (e.g. changing a track's status to needs_manual for the import test).
+// DB helpers — open a sandbox SQLite DB and query/mutate it for test setup
+// and assertions. These helpers operate at the SQL level rather than via the
+// application's own query functions so tests can set up arbitrary preconditions.
 // ---------------------------------------------------------------------------
 
 export interface TrackRow {
@@ -18,35 +17,23 @@ export interface TrackRow {
   library_id: string;
 }
 
-/**
- * Open the sandbox DB file.  The caller must call db.close() when done.
- */
 export function openSandboxDb(dbPath: string): Database.Database {
   const db = new Database(dbPath);
   db.pragma('foreign_keys = ON');
   return db;
 }
 
-/**
- * Return all rows in the `tracks` table.
- */
 export function getAllTracks(db: Database.Database): TrackRow[] {
   return db.prepare('SELECT * FROM tracks ORDER BY id').all() as TrackRow[];
 }
 
-/**
- * Return rows whose status matches the given value.
- */
 export function getTracksByStatus(db: Database.Database, status: string): TrackRow[] {
   return db
     .prepare('SELECT * FROM tracks WHERE status = ? ORDER BY id')
     .all(status) as TrackRow[];
 }
 
-/**
- * Directly update a track's status (for test setup — simulates the state
- * the app would produce without having to run the full flow that produces it).
- */
+/** Directly update a track's status (test setup — simulates app-produced state). */
 export function setTrackStatus(db: Database.Database, id: number, status: string): void {
   db.prepare('UPDATE tracks SET status = ? WHERE id = ?').run(status, id);
 }

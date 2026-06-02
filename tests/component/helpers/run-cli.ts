@@ -5,13 +5,8 @@ import { fileURLToPath } from 'node:url';
 // ---------------------------------------------------------------------------
 // runCli — spawn the real spotify-sync binary as a subprocess.
 //
-// The binary is `bin/spotify-sync`, which dynamically imports dist/index.js.
-// We invoke it via `node bin/spotify-sync <args>` rather than by exec path so
-// it inherits the Node version from the test runner (consistent with the real
-// install scenario).
-//
-// runCliJson is a convenience wrapper that JSON-parses stdout — all integration
-// tests pass --json to every command for deterministic output parsing.
+// `node bin/spotify-sync <args>` is used (not execPath resolution via which)
+// so the binary inherits the same Node version as the test runner.
 // ---------------------------------------------------------------------------
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
@@ -24,15 +19,8 @@ export interface CliResult {
 }
 
 export interface RunCliOptions {
-  /** CLI arguments (not including `node` or the bin path). */
   args: string[];
-  /**
-   * Environment variables for the child process.
-   * Merged on top of the test process's env so Node internals still work.
-   * Pass XDG_*, SPOTIFY_SYNC_*, PATH, and any test-specific overrides here.
-   */
   env: Record<string, string | undefined>;
-  /** Milliseconds before the child is killed and the promise rejects. Default: 60 000. */
   timeoutMs?: number;
 }
 
@@ -56,7 +44,9 @@ export function runCli(opts: RunCliOptions): Promise<CliResult> {
 
     const timer = setTimeout(() => {
       child.kill('SIGTERM');
-      reject(new Error(`CLI timed out after ${timeoutMs} ms\nstdout: ${stdout}\nstderr: ${stderr}`));
+      reject(
+        new Error(`CLI timed out after ${timeoutMs} ms\nstdout: ${stdout}\nstderr: ${stderr}`),
+      );
     }, timeoutMs);
 
     child.once('close', (code) => {
@@ -77,10 +67,7 @@ export interface CliJsonResult<T> {
   stderr: string;
 }
 
-/**
- * Run the CLI and JSON-parse stdout.
- * Throws if stdout is not valid JSON, so test failures surface clearly.
- */
+/** Run the CLI and JSON-parse stdout. Throws clearly if stdout is not valid JSON. */
 export async function runCliJson<T = unknown>(opts: RunCliOptions): Promise<CliJsonResult<T>> {
   const { exitCode, stdout, stderr } = await runCli(opts);
   let result: T;

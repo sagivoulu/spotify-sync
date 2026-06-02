@@ -2,21 +2,24 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { SyncResult } from '../../src/sync/index.js';
+import { getTracksByStatus, openSandboxDb } from './helpers/db.js';
 import { buildChildEnv } from './helpers/env.js';
 import { createFakeBins, type FakeBins } from './helpers/fake-bins.js';
-import { getAllTracks, getTracksByStatus, openSandboxDb } from './helpers/db.js';
 import { runCliJson } from './helpers/run-cli.js';
 import { createSandbox, type Sandbox } from './helpers/sandbox.js';
 import { seedAuth } from './helpers/seed-auth.js';
 
 // ---------------------------------------------------------------------------
-// sync integration test
+// sync component test
 //
 // Covers AC: "sync: downloads at least one track, creates the DB row, places
 // the file in the library dir"
+//
+// The fake Spotify server returns 3 tracks for testplayfull. Fake yt-dlp copies
+// silence.mp3 as the "downloaded" file for each track.
 // ---------------------------------------------------------------------------
 
-const useRealDownloads = Boolean(process.env.INTEGRATION_REAL_DOWNLOADS);
+const useRealDownloads = Boolean(process.env.COMPONENT_REAL_DOWNLOADS);
 
 describe('sync', () => {
   let sandbox: Sandbox;
@@ -58,7 +61,6 @@ describe('sync', () => {
 
       for (const row of downloaded) {
         expect(row.file_path, `track ${row.source_id} missing file_path`).toBeTruthy();
-
         const absolutePath = join(sandbox.libraryPath, row.file_path!);
         expect(
           existsSync(absolutePath),
@@ -70,14 +72,9 @@ describe('sync', () => {
     }
   });
 
-  it('logs the run ID and log path in the result', async () => {
+  it('records a run ID and log path in the result', async () => {
     const env = buildChildEnv(sandbox, fakeBins);
-
-    const { result } = await runCliJson<SyncResult>({
-      args: ['sync', '--json'],
-      env,
-    });
-
+    const { result } = await runCliJson<SyncResult>({ args: ['sync', '--json'], env });
     expect(result.runId).toBeGreaterThan(0);
     expect(result.logPath).toBeTruthy();
   });

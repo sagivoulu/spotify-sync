@@ -10,22 +10,21 @@ import { createSandbox, type Sandbox } from './helpers/sandbox.js';
 import { seedAuth } from './helpers/seed-auth.js';
 
 // ---------------------------------------------------------------------------
-// import integration test
+// import component test
 //
 // Covers AC: "import: imports a local file and registers it in the DB"
 //
 // Flow:
-//   1. Run sync to populate the DB with real Spotify track IDs.
-//   2. Pick one downloaded track; set its status to needs_manual and delete its
-//      file (simulates the scenario where a track couldn't be auto-downloaded).
+//   1. Sync to populate the DB with tracks having known source_ids (testtrack1/2/3).
+//   2. Pick one downloaded track; set its status to needs_manual via direct DB update
+//      and delete its file (simulates a track that could not be auto-downloaded).
 //   3. Run `import <silence.mp3> --for <source_id> --json`.
-//   4. Assert: exit 0, finalPath exists, DB row is now downloaded.
-//
-// The import command calls spotifyClient.fetchTrack() internally (for tagging
-// metadata), so real Spotify credentials are required.
+//      The import command calls spotifyClient.fetchTrack(<source_id>) — the fake
+//      Spotify server serves the track metadata — then copies + tags the file.
+//   4. Assert: finalPath exists, DB row is downloaded.
 // ---------------------------------------------------------------------------
 
-const useRealDownloads = Boolean(process.env.INTEGRATION_REAL_DOWNLOADS);
+const useRealDownloads = Boolean(process.env.COMPONENT_REAL_DOWNLOADS);
 
 describe('import', () => {
   let sandbox: Sandbox;
@@ -48,7 +47,7 @@ describe('import', () => {
   it('imports a local file and marks the track as downloaded', async () => {
     const env = buildChildEnv(sandbox, fakeBins);
 
-    // Step 1: sync to populate the DB with real Spotify track IDs
+    // Step 1: sync to populate the DB
     const syncResult = await runCliJson<SyncResult>({ args: ['sync', '--json'], env });
     expect(syncResult.exitCode, `sync failed: ${syncResult.stderr}`).toBe(0);
 
@@ -64,11 +63,9 @@ describe('import', () => {
       targetSourceId = target.source_id;
       targetId = target.id;
 
-      // Simulate a needs_manual state: update status + delete the file
+      // Set status to needs_manual (the import command resolves needs_manual tracks)
       setTrackStatus(db, targetId, 'needs_manual');
-      // We don't physically delete the file here because the import command
-      // writes to the same path. If the destination file already exists,
-      // rename() in the import flow will overwrite it — that's fine for testing.
+      // The file stays in place — import will overwrite it at the same destination path
     } finally {
       db.close();
     }
@@ -84,7 +81,7 @@ describe('import', () => {
     expect(importResult.result.trackId).toBe(targetSourceId);
     expect(importResult.result.finalPath).toBeTruthy();
 
-    // Step 4: assert the file is at finalPath and the DB row is downloaded
+    // Step 4: file exists and DB row is downloaded
     expect(
       existsSync(importResult.result.finalPath),
       `imported file not found at ${importResult.result.finalPath}`,

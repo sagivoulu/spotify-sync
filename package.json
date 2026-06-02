@@ -14,7 +14,7 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:integration": "npm run build && vitest run --config vitest.integration.config.ts",
+    "test:component": "npm run build && vitest run --config vitest.component.config.ts",
     "lint": "biome check src/",
     "format": "biome format --write src/",
     "smoke:download": "tsx scripts/smoke-test-download.ts"

@@ -49,12 +49,12 @@ All code must be tested. There are no exceptions.
 | Suite | Command | When to use |
 |---|---|---|
 | Unit | `npm test` | Always — fast, hermetic, no credentials needed |
-| Integration | `npm run test:integration` | When adding/changing CLI wiring, Spotify calls, yt-dlp, DB writes, or file placement |
+| Component | `npm run test:component` | When adding/changing CLI wiring, Spotify calls, yt-dlp, DB writes, or file placement |
 
-Integration tests live in `tests/integration/` and spawn the real binary against a sandbox
-scratch directory.  They hit real Spotify (read-only) and use a fake yt-dlp by default
-(set `INTEGRATION_REAL_DOWNLOADS=1` for real downloads).  See `docs/integration-tests.md`
-for credential setup and the two-playlist arrangement required for the prune test.
+Component tests live in `tests/component/` and spawn the real binary against a sandbox scratch
+directory. All external dependencies (Spotify API, yt-dlp, ffmpeg) are replaced by local fakes —
+no credentials, no network. See `docs/component-tests.md` for details.
+Set `COMPONENT_REAL_DOWNLOADS=1` to opt into real yt-dlp/ffmpeg downloads.
 
 ### Code Quality
 - Follow existing patterns in the codebase. Don't introduce new conventions without a reason.
