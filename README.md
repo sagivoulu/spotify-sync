@@ -2,6 +2,12 @@
 
 A tool for DJs to download and manage their Spotify music library locally, built for west coast swing socials.
 
+## Documentation
+
+**[https://sagivoulu.github.io/spotify-sync/](https://sagivoulu.github.io/spotify-sync/)**
+
+Full getting-started guide, configuration reference, command docs, and troubleshooting are on the docs site.
+
 ## The Problem
 
 The typical DJ workflow:
@@ -19,98 +25,29 @@ Early development. See `/prd/` for planned features.
 ## Requirements
 
 - **Node.js 24** (`node --version` to check; `.nvmrc` pins the version)
-- `yt-dlp` and `ffmpeg` on `PATH` (required for download commands; checked at startup)
+- **yt-dlp** ≥ `2026.01.01` and **ffmpeg** on `PATH` (required for download commands)
 
-## New workspace setup
-
-A fresh superset worktree (or plain clone) has no `node_modules/` or `dist/` — both are
-gitignored. Run these once before using the CLI:
+## Quick start
 
 ```bash
-nvm use          # activate Node 24 from .nvmrc
-npm run setup    # npm install && npm run build
-./bin/spotify-sync --help   # verify it works
-```
-
-> **Superset users:** setup runs automatically when superset creates the workspace
-> (via `.superset/config.json`). You don't need to run this manually.
-
-**Spotify credentials & authentication:**
-
-spotify-sync authenticates with Spotify on your behalf via OAuth 2.0 (PKCE flow). This is a one-time setup:
-
-1. **Register a Spotify developer app** at [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) and click *Create app*.
-
-   Suggested values:
-   - **App name:** `spotify-sync`
-   - **App description:** `CLI tool to sync a Spotify playlist to a local music library`
-   - **Website:** leave blank
-   - **Which API/SDKs are you planning to use?** select *Web API* only
-   - Check **I understand and agree with Spotify's Developer Terms of Service and Design Guidelines**
-
-   Under *Redirect URIs*, add: **`http://127.0.0.1:8888/callback`**
-
-   > Spotify requires the explicit loopback IP address — `localhost` is not accepted.
-   > Spotify will show a "redirect URI is not secure" warning because the URI uses `http://`
-   > rather than `https://`. This warning is expected and safe to ignore: traffic to
-   > `127.0.0.1` never leaves your machine, and Spotify explicitly permits `http://` for
-   > loopback addresses.
-
-   Note your **Client ID** and **Client Secret** from the app settings.
-
-2. **Add credentials to your config file** at `~/.config/spotify-sync/config.json`:
-   ```json
-   {
-     "spotify": {
-       "client_id": "YOUR_CLIENT_ID",
-       "client_secret": "YOUR_CLIENT_SECRET",
-       "playlist_url": "https://open.spotify.com/playlist/..."
-     },
-     "library": {
-       "path": "/path/to/your/music/library"
-     }
-   }
-   ```
-   Or use env vars: `SPOTIFY_SYNC_SPOTIFY_CLIENT_ID` and `SPOTIFY_SYNC_SPOTIFY_CLIENT_SECRET`.
-
-3. **Run the auth command:**
-   ```bash
-   ./bin/spotify-sync auth
-   ```
-   Your browser will open for Spotify's consent page. After approving, the terminal prints success.
-   The refresh token is saved to `~/.config/spotify-sync/auth.json` with `0600` permissions
-   (readable only by you). Re-running `spotify-sync auth` overwrites it cleanly.
-
-> **Port override:** if port 8888 is in use, pass `--port <n>` and update the redirect URI in your
-> Spotify app settings to `http://127.0.0.1:<n>/callback`.
-
-## Setup & build
-
-```bash
-npm install
-npm run build
-```
-
-## Run
-
-```bash
-# Using the compiled binary directly:
+nvm use
+npm run setup
 ./bin/spotify-sync --help
-
-# Or install globally (after npm link or npm install -g):
-spotify-sync --help
 ```
 
-Available commands: `auth`, `sync`, `status`, `prune`, `import`
+Then follow the [Getting Started guide](https://sagivoulu.github.io/spotify-sync/getting-started).
 
 ## Development
 
 ```bash
 npm run build        # compile TypeScript → dist/
 npm run typecheck    # type-check without emitting
-npm test             # run tests with Vitest
+npm test             # run unit tests with Vitest
+npm run test:component  # run component tests (hermetic, no credentials needed)
 npm run lint         # lint with Biome
 npm run format       # auto-format with Biome
+npm run docs:dev     # local docs dev server
+npm run docs:build   # build docs for production
 ```
 
 > **Import extension convention:** this project uses `"module": "NodeNext"` in `tsconfig.json`.
