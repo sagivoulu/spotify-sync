@@ -20,6 +20,7 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     include: ['tests/component/**/*.test.ts'],
+    exclude: ['**/node_modules/**', '**/.git/**'],
     globalSetup: ['./tests/component/setup.ts'],
     testTimeout: 60_000,
     hookTimeout: 30_000,

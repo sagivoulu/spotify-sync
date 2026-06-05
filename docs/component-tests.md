@@ -71,6 +71,7 @@ endpoint at `accounts.spotify.com` is never called.
 | `idempotency.test.ts` | Second `sync` — `downloaded === 0`, no re-placement |
 | `prune.test.ts` | Sync FULL → prune with SUBSET URL → track-3 file trashed |
 | `import.test.ts` | Sync → set track-1 to `needs_manual` → `import` → file restored |
+| `status.test.ts` | Sync → manual files added/deleted → `status`, `status --list`, `status --json` report missing vs untracked correctly |
 
 ---
 
