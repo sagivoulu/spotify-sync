@@ -61,13 +61,41 @@ Set `COMPONENT_REAL_DOWNLOADS=1` to opt into real yt-dlp/ffmpeg downloads.
 - Keep modules focused. If a file is doing too many things, that's a flag — raise it, don't silently refactor.
 - No unnecessary abstractions. Solve the problem in front of you.
 
+### Code review
+
+Every PR gets a code review before its ticket is marked **In Review**. This is a manual
+step — Sagiv, Claude, or Codex runs it; there is no CI automation and findings are advisory,
+not merge-blocking.
+
+**When:** after the PR is created, before marking the ticket In Review.
+
+**How — review in a fresh, unbiased context.** Review in a session *without* the dev history.
+A reviewer that didn't write the code produces less biased, higher-signal feedback.
+- **Claude Code:** run `/code-review` (or `/code-review ultra` for a multi-agent, fresh-session
+  review of the whole branch in the cloud).
+- **Codex:** run an equivalent diff review in a fresh session.
+- **Sagiv:** review manually, or trigger either agent.
+
+**What to flag (scope):** correctness bugs and meaningful simplification / efficiency /
+maintainability issues. **Not** formatting or style nits — Biome (`npm run lint`) already owns
+those, so don't restate them.
+
+**Verify the tests.** Confirm the PR's tests actually exercise the behavior it changed (happy
+path + error/edge cases). Without verification we don't know the PR works — call that out as a
+finding.
+
+**Loop until clean.** Fix the findings worth acting on, re-review, and repeat until no
+substantive comments remain. Use judgment on whether a given finding is worth acting on.
+
 ### Ticket lifecycle
 
 Every piece of work maps to a Linear ticket. Follow this flow without exception:
 
 1. **Starting work** → mark the ticket **In Progress** in Linear before writing any code.
-2. **Finishing work** → commit all changes, push the branch, open a GitHub PR with a description (what changed, why, how to test the acceptance criteria), then mark the ticket **In Review** in Linear.
-3. **Never mark a ticket Done yourself** — that's the project owner's call after reviewing the PR.
+2. **Finishing work** → commit all changes, push the branch, open a GitHub PR with a description (what changed, why, how to test the acceptance criteria).
+3. **Review before handoff** → run a code review on the PR (see **Code review** above), fix the findings, and repeat until no substantive comments remain.
+4. **Hand off** → mark the ticket **In Review** in Linear.
+5. **Never mark a ticket Done yourself** — that's the project owner's call after reviewing the PR.
 
 ### Commits
 Use [Conventional Commits](https://www.conventionalcommits.org/) style:
@@ -79,9 +107,10 @@ Use [Conventional Commits](https://www.conventionalcommits.org/) style:
 1. Commit any remaining changes.
 2. Push the branch.
 3. Open a GitHub PR (description: what changed, why, how to verify the acceptance criteria).
-4. Mark the Linear ticket **In Review**.
+4. Review the PR (see **Code review** above), fix the findings, and re-review until no substantive comments remain.
+5. Mark the Linear ticket **In Review**.
 
-Do all four steps automatically — don't wait to be asked.
+Do all five steps automatically — don't wait to be asked.
 
 **On `main`/`master`, never commit or push without explicit approval.** That branch is protected.
 
