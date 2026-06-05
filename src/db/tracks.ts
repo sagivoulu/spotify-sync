@@ -563,3 +563,31 @@ export function listTracksByStatus(
     )
     .all(libraryId, status) as StatusTrackRow[];
 }
+
+// ---------------------------------------------------------------------------
+// listTrackedFilePaths
+// ---------------------------------------------------------------------------
+
+/**
+ * Return every DB-registered local file path for this library, regardless of
+ * track status. Used by `status` to distinguish local files unknown to the DB
+ * from files that are tracked but missing, failed, or removed from source.
+ */
+export function listTrackedFilePaths(
+  db: Database.Database,
+  params: { libraryId: string },
+): string[] {
+  const { libraryId } = params;
+  const rows = db
+    .prepare(
+      `
+      SELECT file_path
+      FROM tracks
+      WHERE library_id = ? AND file_path IS NOT NULL
+      ORDER BY file_path
+    `,
+    )
+    .all(libraryId) as { file_path: string }[];
+
+  return rows.map((row) => row.file_path);
+}

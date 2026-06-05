@@ -21,6 +21,7 @@ export {
   incrementAttempts,
   listDownloadedTracks,
   listPendingTracks,
+  listTrackedFilePaths,
   listPruneCandidates,
   listPrunableTracks,
   listTracksByStatus,
