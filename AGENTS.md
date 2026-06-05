@@ -69,12 +69,11 @@ not merge-blocking.
 
 **When:** after the PR is created, before marking the ticket In Review.
 
-**How — review in a fresh, unbiased context.** Review in a session *without* the dev history.
-A reviewer that didn't write the code produces less biased, higher-signal feedback.
+**How — review in a fresh, unbiased context.** Run the review in a session *without* the dev
+history. A reviewer that didn't write the code produces less biased, higher-signal feedback.
 - **Claude Code:** run `/code-review` (or `/code-review ultra` for a multi-agent, fresh-session
   review of the whole branch in the cloud).
 - **Codex:** run an equivalent diff review in a fresh session.
-- **Sagiv:** review manually, or trigger either agent.
 
 **What to flag (scope):** correctness bugs and meaningful simplification / efficiency /
 maintainability issues. **Not** formatting or style nits — Biome (`npm run lint`) already owns
