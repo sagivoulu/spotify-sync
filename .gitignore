@@ -53,3 +53,7 @@ Thumbs.db
 # Logs
 *.log
 logs/
+
+# VitePress
+docs/.vitepress/dist
+docs/.vitepress/cache
