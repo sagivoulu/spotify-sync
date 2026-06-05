@@ -41,25 +41,25 @@ Also shows the library directory path and database file path.
 
 | Code | Meaning |
 |---|---|
-| `0` | Setup is healthy. |
-| `1` | One or more setup checks failed (config, auth, Spotify). |
+| `0` | All setup checks passed (config, auth, Spotify connectivity). Does not guarantee the library is complete — tracks may still be pending or missing. |
+| `1` | One or more setup checks failed. Run `spotify-sync doctor` for details. |
 
 ## Example output
 
 ```
-Setup:    ✓ ok
-Playlist: WCS Social Mix (142 tracks)
+Setup:    ✓ everything looks good
+
+Playlist: "WCS Social Mix" — 142 tracks on Spotify
 Library:  /Users/you/Music/wcs
+Database: /Users/you/.local/share/spotify-sync/db.sqlite
 
-Downloaded:     137 / 142
-Not yet synced:   3
-Pending:          0
-Missing files:    1
-Failed:           1
-Needs manual:     0
-
-DB: ~/.local/share/spotify-sync/db.sqlite
+  Downloaded:       137 / 142
+  Not yet synced:   3   (in playlist, not yet in library — run `sync`)
+  Missing files:    1
+  Failed:           1
 ```
+
+Counts with a value of zero are omitted from the output.
 
 ## With `--list`
 
@@ -70,12 +70,16 @@ spotify-sync status --list
 Prints the individual tracks under each problem section:
 
 ```
+Not downloaded (3):
+  - Artist One — Track Title
+  - Artist Two — Another Track
+  - Artist Three — Yet Another
+
 Missing files (1):
-  Kiss From a Rose — Seal  [spotify:track:abc123]
+  - Seal — Kiss From a Rose
 
 Failed (1):
-  September — Earth, Wind & Fire  [spotify:track:def456]
-  Error: yt-dlp: no results found
+  - Earth, Wind & Fire — September (yt-dlp: no results found)
 ```
 
 ## Tips

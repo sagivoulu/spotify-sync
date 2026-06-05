@@ -1,5 +1,14 @@
 import { defineConfig } from 'vitepress'
 
+const commandItems = [
+  { text: 'auth', link: '/commands/auth' },
+  { text: 'sync', link: '/commands/sync' },
+  { text: 'status', link: '/commands/status' },
+  { text: 'import', link: '/commands/import' },
+  { text: 'prune', link: '/commands/prune' },
+  { text: 'doctor', link: '/commands/doctor' },
+]
+
 export default defineConfig({
   title: 'spotify-sync',
   description: 'CLI tool to sync a Spotify playlist to a local music library',
@@ -11,14 +20,7 @@ export default defineConfig({
       { text: 'Configuration', link: '/configuration' },
       {
         text: 'Commands',
-        items: [
-          { text: 'auth', link: '/commands/auth' },
-          { text: 'sync', link: '/commands/sync' },
-          { text: 'status', link: '/commands/status' },
-          { text: 'import', link: '/commands/import' },
-          { text: 'prune', link: '/commands/prune' },
-          { text: 'doctor', link: '/commands/doctor' },
-        ],
+        items: commandItems,
       },
       { text: 'Troubleshooting', link: '/troubleshooting' },
     ],
@@ -34,14 +36,7 @@ export default defineConfig({
       },
       {
         text: 'Commands',
-        items: [
-          { text: 'auth', link: '/commands/auth' },
-          { text: 'sync', link: '/commands/sync' },
-          { text: 'status', link: '/commands/status' },
-          { text: 'import', link: '/commands/import' },
-          { text: 'prune', link: '/commands/prune' },
-          { text: 'doctor', link: '/commands/doctor' },
-        ],
+        items: commandItems,
       },
     ],
 

@@ -25,7 +25,7 @@ spotify-sync prune [options]
 1. Compares local database records against the current Spotify playlist.
 2. Identifies tracks that are in the database but no longer in the playlist.
 3. Lists those tracks and their local file paths.
-4. Without `--yes` or `--dry-run`, prompts: `Move N files to trash? [y/N]`
+4. Without `--yes` or `--dry-run`, prompts: `Delete N files? [y/N]`
 5. On confirmation (or with `--yes`), moves the files to the system trash.
 6. Updates the database to remove the pruned track records.
 
@@ -55,20 +55,19 @@ spotify-sync prune --yes --json
 ## Example output
 
 ```
-Tracks removed from playlist (3 files):
-
-  Kiss From a Rose — Seal
+Will move 3 file(s) to trash:
+  - Seal - Kiss From a Rose
     /Users/you/Music/wcs/Kiss From a Rose - Seal.mp3
-
-  September — Earth, Wind & Fire
+  - Earth, Wind & Fire - September
     /Users/you/Music/wcs/September - Earth Wind & Fire.mp3
-
-  Just the Two of Us — Grover Washington Jr.
+  - Grover Washington Jr. - Just the Two of Us
     /Users/you/Music/wcs/Just the Two of Us - Grover Washington Jr.mp3
+Delete 3 files? [y/N] y
+Trashed: Seal - Kiss From a Rose
+Trashed: Earth, Wind & Fire - September
+Trashed: Grover Washington Jr. - Just the Two of Us
 
-Move 3 files to trash? [y/N] y
-
-Moved 3 files to trash.
+Done. trashed=3 missing=0 failed=0
 ```
 
 ::: warning Files go to trash, not permanent deletion

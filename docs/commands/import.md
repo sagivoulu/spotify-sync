@@ -40,11 +40,14 @@ shown with their Spotify track IDs.
 ## What it does
 
 1. Validates that `<file>` exists and is a readable audio file.
-2. Looks up the track by `<track-id>` in your Spotify playlist.
-3. By default, **copies** the file into your configured library directory, renaming it
+2. Looks up the track by `<track-id>` in your **local database** (the track must have
+   been seen by a previous `sync` run). If the track ID is not in the DB, the command
+   fails — run `sync` at least once before importing.
+3. Fetches track metadata from Spotify to use for file naming and tagging.
+4. By default, **copies** the file into your configured library directory, renaming it
    to match spotify-sync's filename convention.
-4. With `--move`, the original file is moved instead of copied (no duplicate on disk).
-5. Records the import in the local database so subsequent `sync` runs skip this track.
+5. With `--move`, the original file is moved instead of copied (no duplicate on disk).
+6. Records the import in the local database so subsequent `sync` runs skip this track.
 
 ## Exit codes
 

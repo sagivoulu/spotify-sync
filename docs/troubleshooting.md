@@ -9,22 +9,19 @@ version as too old.
 blocked by YouTube bot detection and will fail silently — downloads will appear to run
 but produce no audio.
 
-**Fix:**
+**Fix (install):** See [Getting Started › Install yt-dlp](/getting-started#install-yt-dlp).
+
+**Fix (upgrade an existing install):**
 
 ```bash
 # macOS
-brew install yt-dlp
-# or upgrade:
 brew upgrade yt-dlp
 
 # Linux (pipx)
-pipx install yt-dlp
-# or upgrade:
 pipx upgrade yt-dlp
 
-# Any platform — standalone binary
-# https://github.com/yt-dlp/yt-dlp/releases/latest
-yt-dlp -U   # self-update if already installed
+# Any platform (self-update)
+yt-dlp -U
 ```
 
 Verify with:
@@ -98,20 +95,9 @@ Register `http://127.0.0.1:9000/callback` as a redirect URI in your Spotify app 
 **Symptom:** `spotify-sync doctor` reports Config check failed with a message about
 missing `client_id`, `client_secret`, or `playlist_url`.
 
-**Fix:** Create or update `~/.config/spotify-sync/config.json`:
-
-```json
-{
-  "spotify": {
-    "client_id": "YOUR_CLIENT_ID",
-    "client_secret": "YOUR_CLIENT_SECRET",
-    "playlist_url": "https://open.spotify.com/playlist/..."
-  },
-  "library": {
-    "path": "/path/to/your/music"
-  }
-}
-```
+**Fix:** Create `~/.config/spotify-sync/config.json` — see
+[Getting Started › Create the config file](/getting-started#2-create-the-config-file)
+for the template.
 
 Alternatively set the environment variables:
 

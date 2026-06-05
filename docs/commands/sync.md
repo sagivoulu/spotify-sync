@@ -41,16 +41,22 @@ being marked as failed.
 ## Example output
 
 ```
-Fetching playlist "WCS Social Mix" (142 tracks)...
-Pending: 5 tracks to download
+Logging to /Users/you/.local/state/spotify-sync/logs/abc123.log
+Library: /Users/you/Music/wcs
+Syncing: 5 pending, 2 new, 0 removed (concurrency: 3)
+✓ Seal — Kiss From a Rose (yt-dlp)
+✓ Stevie Wonder — Superstition (yt-dlp)
+✓ Earth, Wind & Fire — September (yt-dlp)
+✓ Bill Withers — Ain't No Sunshine (yt-dlp)
+✓ Grover Washington Jr. — Just the Two of Us (yt-dlp)
 
-[1/5] Downloading "Kiss From a Rose" by Seal...  ✓
-[2/5] Downloading "Superstition" by Stevie Wonder...  ✓
-[3/5] Downloading "September" by Earth, Wind & Fire...  ✓
-[4/5] Downloading "Aint No Sunshine" by Bill Withers...  ✓
-[5/5] Downloading "Just the Two of Us" by Grover Washington Jr...  ✓
+Done. added=2 downloaded=5 failed=0 removed=0
+```
 
-Done. 5 downloaded, 0 failed.
+If a track fails after all retries it shows as:
+
+```
+✗ Artist — Title failed after 3 attempt(s): <error message>
 ```
 
 ## Tips

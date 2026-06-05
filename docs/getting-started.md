@@ -63,6 +63,15 @@ npm run setup
 ./bin/spotify-sync --help
 ```
 
+The binary lives at `./bin/spotify-sync` relative to the repo root. The examples below
+use this path. Optionally, add it to your shell's PATH for shorter invocations:
+
+```bash
+# Add to ~/.zshrc or ~/.bashrc:
+export PATH="$PWD/bin:$PATH"
+# Then you can run: spotify-sync --help
+```
+
 ---
 
 ## Set up Spotify credentials
@@ -128,7 +137,7 @@ Follow these three steps in order:
 ### Step 1 — Authenticate
 
 ```bash
-spotify-sync auth
+./bin/spotify-sync auth
 ```
 
 Your browser opens to Spotify's consent page. After approving, the terminal prints a success
@@ -143,7 +152,7 @@ Spotify app settings to `http://127.0.0.1:<n>/callback`.
 ### Step 2 — Verify setup
 
 ```bash
-spotify-sync doctor
+./bin/spotify-sync doctor
 ```
 
 This checks your config, authentication, Spotify connectivity, and whether `yt-dlp` and
@@ -152,7 +161,7 @@ This checks your config, authentication, Spotify connectivity, and whether `yt-d
 ### Step 3 — Sync your playlist
 
 ```bash
-spotify-sync sync
+./bin/spotify-sync sync
 ```
 
 spotify-sync fetches your Spotify playlist, compares it against what's already on disk, and
