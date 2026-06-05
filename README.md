@@ -30,16 +30,20 @@ Early development. See `/prd/` for planned features.
 ## Quick start
 
 ```bash
-nvm use
-npm run setup
-./bin/spotify-sync --help
+npm install -g spotify-sync
+spotify-sync --help
 ```
 
 Then follow the [Getting Started guide](https://sagivoulu.github.io/spotify-sync/getting-started).
 
 ## Development
 
+To install from source instead of the published npm package:
+
 ```bash
+nvm use
+npm run setup        # install dependencies and compile TypeScript
+./bin/spotify-sync --help
 npm run build        # compile TypeScript → dist/
 npm run typecheck    # type-check without emitting
 npm test             # run unit tests with Vitest

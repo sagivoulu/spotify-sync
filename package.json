@@ -3,15 +3,27 @@
   "version": "0.1.0",
   "description": "CLI tool to sync a Spotify playlist to a local music library for west coast swing DJs",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sagivoulu/spotify-sync.git"
+  },
+  "homepage": "https://sagivoulu.github.io/spotify-sync/",
+  "license": "UNLICENSED",
+  "files": [
+    "dist/",
+    "bin/"
+  ],
   "engines": {
     "node": ">=24"
   },
   "bin": {
-    "spotify-sync": "./bin/spotify-sync"
+    "spotify-sync": "bin/spotify-sync"
   },
   "scripts": {
     "setup": "npm install && npm run build",
-    "build": "tsc",
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
+    "build": "npm run clean && tsc",
+    "prepublishOnly": "npm run build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:component": "npm run build && vitest run --config vitest.component.config.ts",
