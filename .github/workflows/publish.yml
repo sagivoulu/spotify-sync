@@ -145,4 +145,5 @@ jobs:
 
       - name: Skip package publish
         if: ${{ steps.release.outputs.bump == 'none' }}
-        run: echo "PR #${{ steps.release.outputs.pr_number }} type ${{ steps.release.outputs.pr_type }} does not publish an npm version."
+        run: |
+          echo "PR ${{ steps.release.outputs.pr_number }} type ${{ steps.release.outputs.pr_type }} does not publish an npm version."
