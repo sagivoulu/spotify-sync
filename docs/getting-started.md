@@ -49,27 +49,24 @@ sudo apt install ffmpeg
 ## Install spotify-sync
 
 ```bash
-# Clone the repo
+npm install -g spotify-sync
+spotify-sync --help
+```
+
+The examples below use the global `spotify-sync` binary.
+
+### Alternative: install from source
+
+Use the source setup only if you are contributing to spotify-sync or want to run an
+unpublished checkout. This installs dependencies and builds from source:
+
+```bash
 git clone https://github.com/sagivoulu/spotify-sync.git
 cd spotify-sync
 
-# Activate Node 24 (if using nvm)
 nvm use
-
-# Install dependencies and build
 npm run setup
-
-# Verify the binary works
 ./bin/spotify-sync --help
-```
-
-The binary lives at `./bin/spotify-sync` relative to the repo root. The examples below
-use this path. Optionally, add it to your shell's PATH for shorter invocations:
-
-```bash
-# Add to ~/.zshrc or ~/.bashrc:
-export PATH="$PWD/bin:$PATH"
-# Then you can run: spotify-sync --help
 ```
 
 ---
@@ -137,7 +134,7 @@ Follow these three steps in order:
 ### Step 1 — Authenticate
 
 ```bash
-./bin/spotify-sync auth
+spotify-sync auth
 ```
 
 Your browser opens to Spotify's consent page. After approving, the terminal prints a success
@@ -152,7 +149,7 @@ Spotify app settings to `http://127.0.0.1:<n>/callback`.
 ### Step 2 — Verify setup
 
 ```bash
-./bin/spotify-sync doctor
+spotify-sync doctor
 ```
 
 This checks your config, authentication, Spotify connectivity, and whether `yt-dlp` and
@@ -161,7 +158,7 @@ This checks your config, authentication, Spotify connectivity, and whether `yt-d
 ### Step 3 — Sync your playlist
 
 ```bash
-./bin/spotify-sync sync
+spotify-sync sync
 ```
 
 spotify-sync fetches your Spotify playlist, compares it against what's already on disk, and
