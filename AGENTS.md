@@ -44,6 +44,18 @@ All code must be tested. There are no exceptions.
 - Tests live alongside the code they cover (or in a `tests/` directory mirroring the source structure)
 - Don't ship a feature without a test that would catch a regression
 
+**Two test suites — keep them separate:**
+
+| Suite | Command | When to use |
+|---|---|---|
+| Unit | `npm test` | Always — fast, hermetic, no credentials needed |
+| Component | `npm run test:component` | When adding/changing CLI wiring, Spotify calls, yt-dlp, DB writes, or file placement |
+
+Component tests live in `tests/component/` and spawn the real binary against a sandbox scratch
+directory. All external dependencies (Spotify API, yt-dlp, ffmpeg) are replaced by local fakes —
+no credentials, no network. See `docs/component-tests.md` for details.
+Set `COMPONENT_REAL_DOWNLOADS=1` to opt into real yt-dlp/ffmpeg downloads.
+
 ### Code Quality
 - Follow existing patterns in the codebase. Don't introduce new conventions without a reason.
 - Keep modules focused. If a file is doing too many things, that's a flag — raise it, don't silently refactor.

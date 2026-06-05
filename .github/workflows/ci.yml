@@ -42,3 +42,23 @@ jobs:
 
       - name: Test
         run: npm test
+
+  component:
+    runs-on: ubuntu-latest
+    # Component tests are fully hermetic — no secrets or external services needed.
+    # Fork PRs can run them too (no credential gate).
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Component tests
+        run: npm run test:component

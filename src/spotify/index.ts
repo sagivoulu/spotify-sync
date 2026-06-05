@@ -36,16 +36,25 @@ export interface CreateSpotifyClientFromDiskOptions {
  *
  * Throws a user-facing error (mentioning `spotify-sync auth`) if auth.json is
  * missing or corrupt — the CLI surfaces this directly to the user.
+ *
+ * When the SPOTIFY_SYNC_SPOTIFY_BASE_URL environment variable is set, it is
+ * read from `env` and forwarded to createSpotifyClient as the `baseUrl` dep,
+ * redirecting all API calls to that base (used by the component test suite
+ * to point the binary at a local fake Spotify server).
  */
 export function createSpotifyClientFromDisk(
   opts: CreateSpotifyClientFromDiskOptions,
 ): SpotifyClient {
   const { clientId, fetchFn, env } = opts;
   const token = loadToken({ env });
+  // Read the base-URL override from the environment. This is set by the component
+  // test harness (SPOTIFY_SYNC_SPOTIFY_BASE_URL) and is undefined in production.
+  const baseUrl = env?.SPOTIFY_SYNC_SPOTIFY_BASE_URL || undefined;
   return createSpotifyClient({
     clientId,
     token,
     fetchFn,
+    baseUrl,
     onTokenRefreshed: (t) => saveToken(t, { env }),
   });
 }
