@@ -63,9 +63,8 @@ Set `COMPONENT_REAL_DOWNLOADS=1` to opt into real yt-dlp/ffmpeg downloads.
 
 ### Code review
 
-Every PR gets a code review before its ticket is marked **In Review**. This is a manual
-step — Sagiv, Claude, or Codex runs it; there is no CI automation and findings are advisory,
-not merge-blocking.
+Every PR gets a code review before its ticket is marked **In Review**. Run it yourself — there
+is no CI automation and findings are advisory, not merge-blocking.
 
 **When:** after the PR is created, before marking the ticket In Review.
 
