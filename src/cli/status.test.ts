@@ -38,6 +38,7 @@ const OK_REPORT: StatusReport = {
     ],
     missingFiles: [{ artist: 'Artist', title: 'Missing Song', sourceId: 'm1' }],
     untrackedFiles: ['manual/nested-track.mp3'],
+    scanErrors: [{ path: 'manual/unreadable', code: 'EACCES', message: 'permission denied' }],
     failed: [
       { artist: 'Caro Emerald', title: 'Failed Track', sourceId: 'f1', error: 'No candidates' },
       { artist: 'Caro Emerald', title: 'Failed Track 2', sourceId: 'f2', error: 'Timeout' },
@@ -101,6 +102,7 @@ describe('runStatusCommand', () => {
     expect(text).toContain('/music/wcs');
     expect(text).toContain('45 / 52');
     expect(text).toContain('Untracked files:  1');
+    expect(text).toContain('Scan warnings:    1');
     expect(process.exitCode).toBe(0);
   });
 
@@ -131,6 +133,7 @@ describe('runStatusCommand', () => {
     expect(text).not.toContain('Not downloaded (');
     expect(text).not.toContain('Missing files (');
     expect(text).not.toContain('Untracked files (');
+    expect(text).not.toContain('Scan warnings (');
     expect(text).not.toContain('Failed (');
     expect(text).not.toContain('Pending One');
     expect(text).not.toContain('manual/nested-track.mp3');
@@ -152,6 +155,8 @@ describe('runStatusCommand', () => {
     expect(text).toContain('Missing Song');
     expect(text).toContain('Untracked files (1)');
     expect(text).toContain('manual/nested-track.mp3');
+    expect(text).toContain('Scan warnings (1)');
+    expect(text).toContain('manual/unreadable [EACCES]: permission denied');
     expect(text).toContain('Failed (2)');
     expect(text).toContain('No candidates');
   });

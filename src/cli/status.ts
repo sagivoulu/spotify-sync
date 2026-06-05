@@ -125,6 +125,9 @@ function printHumanReport(report: StatusReport, showList: boolean): void {
   if (counts.untrackedFiles > 0) {
     process.stdout.write(`  Untracked files:  ${counts.untrackedFiles}\n`);
   }
+  if (library.scanErrors.length > 0) {
+    process.stdout.write(`  Scan warnings:    ${library.scanErrors.length}\n`);
+  }
   if (counts.failed > 0) {
     process.stdout.write(`  Failed:           ${counts.failed}\n`);
   }
@@ -138,9 +141,10 @@ function printHumanReport(report: StatusReport, showList: boolean): void {
   const hasPending = library.notDownloaded.length > 0;
   const hasMissing = library.missingFiles.length > 0;
   const hasUntracked = library.untrackedFiles.length > 0;
+  const hasScanErrors = library.scanErrors.length > 0;
   const hasFailed = library.failed.length > 0;
 
-  if (!hasPending && !hasMissing && !hasUntracked && !hasFailed) {
+  if (!hasPending && !hasMissing && !hasUntracked && !hasScanErrors && !hasFailed) {
     process.stdout.write('\nAll downloaded tracks are accounted for.\n');
     return;
   }
@@ -163,6 +167,14 @@ function printHumanReport(report: StatusReport, showList: boolean): void {
     process.stdout.write(`\nUntracked files (${library.untrackedFiles.length}):\n`);
     for (const filePath of library.untrackedFiles) {
       process.stdout.write(`  - ${filePath}\n`);
+    }
+  }
+
+  if (hasScanErrors) {
+    process.stdout.write(`\nScan warnings (${library.scanErrors.length}):\n`);
+    for (const err of library.scanErrors) {
+      const codeNote = err.code ? ` [${err.code}]` : '';
+      process.stdout.write(`  - ${err.path}${codeNote}: ${err.message}\n`);
     }
   }
 

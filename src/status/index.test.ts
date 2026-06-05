@@ -13,7 +13,7 @@
 // - DB schema not created (tracks table absent) → dbInitialized=false.
 // ---------------------------------------------------------------------------
 
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -138,19 +138,27 @@ function makeSeededDb() {
 // ---------------------------------------------------------------------------
 
 describe('scanLocalAudioFiles', () => {
-  it('recursively returns relative .mp3 and .m4a paths and ignores other files', () => {
+  it('recursively returns relative audio paths and ignores non-audio files', () => {
     const dir = mkdtempSync(join(tmpdir(), 'spotify-sync-status-'));
     try {
       mkdirSync(join(dir, 'nested'), { recursive: true });
+      mkdirSync(join(dir, '..mix'), { recursive: true });
       writeFileSync(join(dir, 'Song.MP3'), 'audio');
       writeFileSync(join(dir, 'nested', 'Manual.m4a'), 'audio');
+      writeFileSync(join(dir, 'nested', 'Lossless.flac'), 'audio');
+      writeFileSync(join(dir, '..mix', 'Raw.wav'), 'audio');
       writeFileSync(join(dir, 'nested', 'cover.jpg'), 'image');
       writeFileSync(join(dir, 'notes.txt'), 'notes');
 
-      const paths = scanLocalAudioFiles(dir);
+      const scan = scanLocalAudioFiles(dir);
 
-      expect(paths).toHaveLength(2);
-      expect(paths).toEqual(expect.arrayContaining(['Song.MP3', 'nested/Manual.m4a']));
+      expect(scan.files).toEqual([
+        '..mix/Raw.wav',
+        'nested/Lossless.flac',
+        'nested/Manual.m4a',
+        'Song.MP3',
+      ]);
+      expect(scan.errors).toEqual([]);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -166,14 +174,37 @@ describe('scanLocalAudioFiles', () => {
       writeFileSync(join(externalDir, 'outside.mp3'), 'audio');
       symlinkSync(externalDir, join(libraryDir, 'linked'), 'dir');
 
-      expect(scanLocalAudioFiles(libraryDir)).toEqual([]);
+      expect(scanLocalAudioFiles(libraryDir)).toEqual({ files: [], errors: [] });
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  it('returns an empty list when the library directory cannot be read', () => {
-    expect(scanLocalAudioFiles('/tmp/no-such-spotify-sync-library')).toEqual([]);
+  it('reports a scan error when the library directory cannot be read', () => {
+    const scan = scanLocalAudioFiles('/tmp/no-such-spotify-sync-library');
+    expect(scan.files).toEqual([]);
+    expect(scan.errors).toHaveLength(1);
+    expect(scan.errors[0]?.path).toBe('.');
+  });
+
+  it('reports unreadable subdirectories without aborting the rest of the scan', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'spotify-sync-status-'));
+    const unreadableDir = join(dir, 'manual', 'unreadable');
+    try {
+      mkdirSync(unreadableDir, { recursive: true });
+      writeFileSync(join(dir, 'visible.mp3'), 'audio');
+      writeFileSync(join(unreadableDir, 'hidden.mp3'), 'audio');
+      chmodSync(unreadableDir, 0o000);
+
+      const scan = scanLocalAudioFiles(dir);
+
+      expect(scan.files).toEqual(['visible.mp3']);
+      expect(scan.errors).toHaveLength(1);
+      expect(scan.errors[0]?.path).toBe('manual/unreadable');
+    } finally {
+      chmodSync(unreadableDir, 0o700);
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 
@@ -247,12 +278,15 @@ describe('getStatus — happy path', () => {
       db,
       runDoctorFn: async () => makeOkDoctorResult(),
       fileExists: (path) => !path.includes('missing-song'),
-      scanLocalAudioFiles: () => [
-        'caro-emerald-back-it-up.mp3',
-        'manual-existing.m4a',
-        'missing-song.mp3',
-        'nested/manual-only.mp3',
-      ],
+      scanLocalAudioFiles: () => ({
+        files: [
+          'caro-emerald-back-it-up.mp3',
+          'manual-existing.m4a',
+          'missing-song.mp3',
+          'nested/manual-only.mp3',
+        ],
+        errors: [],
+      }),
     });
 
     expect(report.library.counts?.untrackedFiles).toBe(1);

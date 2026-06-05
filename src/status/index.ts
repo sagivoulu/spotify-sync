@@ -14,6 +14,7 @@ import { composeAbsolutePath } from '../library/index.js';
 import type { SpotifyClient } from '../spotify/index.js';
 import type {
   LibraryCounts,
+  LibraryScanError,
   LibraryStatus,
   PlaylistStatus,
   StatusReport,
@@ -202,6 +203,7 @@ async function collectLibraryStatus(opts: CollectLibraryOpts): Promise<LibrarySt
       notDownloaded: [],
       missingFiles: [],
       untrackedFiles: [],
+      scanErrors: [],
       failed: [],
       detail: configError,
     };
@@ -224,6 +226,7 @@ async function collectLibraryStatus(opts: CollectLibraryOpts): Promise<LibrarySt
       notDownloaded: [],
       missingFiles: [],
       untrackedFiles: [],
+      scanErrors: [],
       failed: [],
     };
   } else {
@@ -241,6 +244,7 @@ async function collectLibraryStatus(opts: CollectLibraryOpts): Promise<LibrarySt
         notDownloaded: [],
         missingFiles: [],
         untrackedFiles: [],
+        scanErrors: [],
         failed: [],
       };
     }
@@ -258,7 +262,8 @@ async function collectLibraryStatus(opts: CollectLibraryOpts): Promise<LibrarySt
     const trackedFilePaths = new Set(
       listTrackedFilePaths(db, { libraryId }).map(normalizeRelativePath),
     );
-    const untrackedFiles = scanLocalAudioFiles(downloadDir).filter(
+    const localScan = scanLocalAudioFiles(downloadDir);
+    const untrackedFiles = localScan.files.filter(
       (filePath) => !trackedFilePaths.has(normalizeRelativePath(filePath)),
     );
 
@@ -289,6 +294,7 @@ async function collectLibraryStatus(opts: CollectLibraryOpts): Promise<LibrarySt
       notDownloaded: toTrackListItems(pendingRows),
       missingFiles: toTrackListItems(missingFileRows),
       untrackedFiles,
+      scanErrors: localScan.errors,
       failed: toTrackListItems(failedRows, true),
     };
   } catch {
@@ -303,6 +309,7 @@ async function collectLibraryStatus(opts: CollectLibraryOpts): Promise<LibrarySt
       notDownloaded: [],
       missingFiles: [],
       untrackedFiles: [],
+      scanErrors: [],
       failed: [],
     };
   } finally {
@@ -312,18 +319,50 @@ async function collectLibraryStatus(opts: CollectLibraryOpts): Promise<LibrarySt
   }
 }
 
-type LocalAudioFileScanner = (libraryPath: string) => string[];
+export interface LocalAudioFileScanResult {
+  files: string[];
+  errors: LibraryScanError[];
+}
 
-const LOCAL_AUDIO_EXTENSIONS = new Set(['.mp3', '.m4a']);
+type LocalAudioFileScanner = (libraryPath: string) => LocalAudioFileScanResult;
 
-export function scanLocalAudioFiles(libraryPath: string): string[] {
+const LOCAL_AUDIO_EXTENSIONS = new Set([
+  '.aac',
+  '.aif',
+  '.aiff',
+  '.alac',
+  '.amr',
+  '.ape',
+  '.au',
+  '.caf',
+  '.dff',
+  '.dsf',
+  '.flac',
+  '.m4a',
+  '.m4b',
+  '.m4p',
+  '.mp2',
+  '.mp3',
+  '.oga',
+  '.ogg',
+  '.opus',
+  '.ra',
+  '.wav',
+  '.weba',
+  '.wma',
+  '.wv',
+]);
+
+export function scanLocalAudioFiles(libraryPath: string): LocalAudioFileScanResult {
   const files: string[] = [];
+  const errors: LibraryScanError[] = [];
 
   function visit(dir: string): void {
     let entries: Dirent[];
     try {
       entries = readdirSync(dir, { withFileTypes: true });
-    } catch {
+    } catch (err) {
+      errors.push(toLibraryScanError(libraryPath, dir, err));
       return;
     }
 
@@ -333,7 +372,7 @@ export function scanLocalAudioFiles(libraryPath: string): string[] {
         visit(absolutePath);
       } else if (entry.isFile() && LOCAL_AUDIO_EXTENSIONS.has(extname(entry.name).toLowerCase())) {
         const relativePath = normalizeRelativePath(relative(libraryPath, absolutePath));
-        if (relativePath !== '' && !relativePath.startsWith('..')) {
+        if (relativePath !== '') {
           files.push(relativePath);
         }
       }
@@ -341,11 +380,28 @@ export function scanLocalAudioFiles(libraryPath: string): string[] {
   }
 
   visit(libraryPath);
-  return files.sort((a, b) => a.localeCompare(b));
+  return {
+    files: files.sort((a, b) => a.localeCompare(b)),
+    errors: errors.sort((a, b) => a.path.localeCompare(b.path)),
+  };
 }
 
 function normalizeRelativePath(filePath: string): string {
   return filePath.replaceAll('\\', '/');
+}
+
+function toLibraryScanError(libraryPath: string, path: string, err: unknown): LibraryScanError {
+  const relativePath = normalizeRelativePath(relative(libraryPath, path)) || '.';
+  const code =
+    typeof err === 'object' && err !== null && 'code' in err && typeof err.code === 'string'
+      ? err.code
+      : undefined;
+  const message = err instanceof Error ? err.message : String(err);
+  return {
+    path: relativePath,
+    ...(code !== undefined ? { code } : {}),
+    message,
+  };
 }
 
 function toTrackListItems(rows: StatusTrackRow[], includeError = false): TrackListItem[] {
