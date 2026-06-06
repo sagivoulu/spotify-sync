@@ -21,7 +21,7 @@ If the UI needs data the `--json` doesn't expose, that's a finding to feed back 
 ## Top-level structure
 
 ```
-┌─ open·beat  🔍 Search  [PLAYLIST: WCS Sagbot ↗]  ● 814 downloaded · 2h · ⚠ N review ─┐
+┌─ open·beat            [PLAYLIST: WCS Sagbot ↗]   ● 814 downloaded · 2h · ⚠ N review ─┐
 │  TABS (tab-per-category):                                                      │
 │   ● Dashboard   health at a glance + Run sync   (PHASE 1 — landing view)       │
 │   ● Tracks      all songs, art, preview, filters(PHASE 1 — anchor view)        │
@@ -56,11 +56,15 @@ Pattern borrowed from Lexicon's "scans → actionable problem lists."
   resolve actions (retry, manual import).
 - **Scroll containment:** the filter/sort bar (top) and the side panel (right) stay pinned;
   only the track list scrolls.
-- Filters: **All** + **adaptive status chips** (Pending / Failed / Removed) — grayed &
-  non-clickable when empty, colored with a count when they have songs (so the bar only
-  draws attention to states that actually exist). **No standing `Downloaded` filter** —
-  browse "All" instead; a Downloaded-only view returns in Phase 2 for tagging. Plus tag +
-  free-text search.
+- **Tracks control bar** — search, filter, and sort grouped together (they all describe
+  "how the list is shaped"; search belongs here, not in the global top bar):
+  - **Free-text search** (title / artist).
+  - **Adaptive status chips** (Pending / Failed / Removed) — grayed & non-clickable when
+    empty, colored with a count when populated. **No standing `Downloaded` filter** (browse
+    "All"; a Downloaded-only view returns in Phase 2 for tagging).
+  - **Sort**.
+  - *Future (Phase 2):* VirtualDJ-style filtering — combine **tags** (e.g. sexy, dark) +
+    **energy** (e.g. low) with free-text search, all here in the Tracks page.
 
 ### Activity (action log) — light
 - A clearly-labeled **technical** log: sync runs, tracks removed from source, manual imports
@@ -79,7 +83,8 @@ Pattern borrowed from Lexicon's "scans → actionable problem lists."
   playlist in Spotify. A switcher is a multi-playlist / multi-library future concern.
 - **Library health badge** (top-right), always visible from any tab: downloaded count +
   last-sync time + an amber "⚠ N to review" when anything needs attention; click → Dashboard.
-- **Global search** in the top bar (Lexicon table-stake).
+- **Search is NOT global** — it lives in the Tracks page (see below), since searching is a
+  Tracks operation.
 - Visual direction (Prototype phase): **Spotify-like** — dark, clean, art-forward.
 
 ## Resolve actions — where they live

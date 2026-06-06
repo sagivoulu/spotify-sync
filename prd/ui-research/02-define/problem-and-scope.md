@@ -48,6 +48,8 @@ The first shippable UI. Mostly presentation over existing core logic + `--json`.
 ### Phase 2 — Organize & Verify
 - Tagging assistance.
 - Event-readiness **coverage smartlists** (rule-based, à la Lexicon).
+- **Tracks filtering by tags + energy** (VirtualDJ-style), combined with free-text search,
+  in the Tracks control bar (closely related to coverage smartlists).
 - **Quality / match verification** (own line of work): preview-confirm the downloaded
   version, and re-pick from candidate matches. Needs backend changes (store the candidate
   list — today only the chosen result is logged) and a "verified" flag on tracks.
