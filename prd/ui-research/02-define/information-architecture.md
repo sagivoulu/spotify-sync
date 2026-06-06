@@ -54,6 +54,8 @@ Pattern borrowed from Lexicon's "scans → actionable problem lists."
 - **Inline play/preview** per row.
 - Row click → **side panel** (Lexicon pattern Sagiv liked): match info, file path, and
   resolve actions (retry, manual import).
+- **Scroll containment:** the filter/sort bar (top) and the side panel (right) stay pinned;
+  only the track list scrolls.
 - Filters: **All** + **adaptive status chips** (Pending / Failed / Removed) — grayed &
   non-clickable when empty, colored with a count when they have songs (so the bar only
   draws attention to states that actually exist). **No standing `Downloaded` filter** —
