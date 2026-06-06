@@ -32,6 +32,12 @@ plus its findings/artifacts.
 
 - `01-discovery/current-state-journey.md` — current-state journey map of the
   full DJ library lifecycle (✅ step 1: workflow journaling).
+- `01-discovery/competitor-teardown.md` — DJ tool landscape (✅ step 2). Key finding:
+  acquisition (Spotify→local mp3) is an unoccupied niche; commercial tools only manage
+  files you already own. Patterns to steal from Lexicon; scope-discipline list.
+- `01-discovery/lexicon-personal-impressions.md` — Sagiv's first-hand Lexicon reactions
+  (✅ step 2b). Drives IA (tab-per-category), required fields (album art in, Key out), and
+  visual direction (Spotify-like). Raises a VDJ-integration feasibility question.
 
 ## Working notes
 
