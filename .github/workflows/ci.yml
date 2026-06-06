@@ -5,6 +5,8 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+    # include `edited` so the PR-title check re-runs when the title is edited
+    types: [opened, synchronize, reopened, edited]
 
 # Cancel superseded runs on the same ref to conserve Actions minutes
 concurrency:
