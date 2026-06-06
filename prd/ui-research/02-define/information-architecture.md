@@ -63,7 +63,8 @@ Pattern borrowed from Lexicon's "scans → actionable problem lists."
     empty, colored with a count when populated. **No standing `Downloaded` filter** (browse
     "All"; a Downloaded-only view returns in Phase 2 for tagging).
   - **Sort** — an icon button (same visual style as the filters button) opening a menu of
-    sort fields (date added, title, artist, BPM, status).
+    sort fields (date added, title, artist, BPM, status). **Reversible:** click the active
+    field again to flip ascending/descending; the selected field shows a ↑/↓ direction arrow.
   - **Filters button** — a Linear-style **funnel icon** (three decreasing lines) at the
     top-right of the bar; opens the filter panel. *Future (Phase 2):* VirtualDJ-style
     filtering — combine **tags** (e.g. sexy, dark) + **energy** (e.g. low) with free-text
@@ -84,6 +85,10 @@ one-line explanation in the side panel:
 | `removed_from_source` | Removed from Spotify | No longer in the playlist; file kept until prune. |
 
 (The "Spotify" wording is source-specific for v1; a multi-source future generalizes to "source".)
+
+When a status filter is active, a short **explainer line** appears between the filter chips
+and the song list describing that category (shown for Not downloaded / Failed / Removed;
+none for All).
 
 ### Activity (action log) — light
 - A clearly-labeled **technical** log: sync runs, tracks removed from source, manual imports

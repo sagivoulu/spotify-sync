@@ -67,6 +67,10 @@ cd prd/ui-research/04-prototype && python3 -m http.server 8765
 - Clarified **status terminology** — statuses describe download/sync state, so labels are now
   plain-language (Downloaded / Not downloaded / Download failed / Removed from Spotify) with
   tooltips and a one-line explanation in the side panel.
+- **Reversible sort** — click the active sort field again to flip asc/desc; the selected field
+  shows a ↑/↓ direction arrow (menu stays open).
+- **Status explainer** — a short line between the filter chips and the list explains the active
+  category (Not downloaded / Failed / Removed; none for All).
 
 ### Verified
 
