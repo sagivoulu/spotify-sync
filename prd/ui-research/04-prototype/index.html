@@ -156,6 +156,11 @@
   .setbtn.primary{background:var(--green);color:#000;border:none}
   .setbtn:hover{filter:brightness(1.1)}
   .settracks{color:var(--faint);font-size:12.5px;margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
+  .coming{max-width:520px;margin:48px auto;text-align:center;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:40px 30px}
+  .coming-ico{font-size:40px;margin-bottom:14px}
+  .coming-badge{display:inline-block;background:rgba(85,153,255,.12);border:1px solid rgba(85,153,255,.35);color:#9bc2ff;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:4px 12px;border-radius:999px;margin-bottom:14px}
+  .coming h2{margin:0 0 10px;font-size:22px}
+  .coming p{color:var(--muted);font-size:14px;line-height:1.6;margin:0}
 
   /* sync progress */
   .progress{display:none;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;margin-top:16px}
@@ -272,6 +277,7 @@
   <div class="tabs" id="tabs">
     <div class="tab active" data-view="home">Home</div>
     <div class="tab" data-view="tracks">Tracks</div>
+    <div class="tab" data-view="tagging">Tagging <span class="soon">Soon</span></div>
     <div class="tab" data-view="sets">Sets <span class="soon">Soon</span></div>
     <div class="tab" data-view="activity">Activity</div>
   </div>
@@ -356,6 +362,18 @@
       <h2 class="section">Action log</h2>
       <p class="sublabel">Technical activity — syncs, removed tracks, manual imports detected.</p>
       <div id="activityList"></div>
+    </div>
+
+    <!-- TAGGING (coming soon) -->
+    <div class="view" id="tagging">
+      <div class="coming">
+        <div class="coming-ico">🏷️</div>
+        <div class="coming-badge">Coming soon</div>
+        <h2>Tagging</h2>
+        <p>openbeat will help you tag your music — <b>energy</b> (high / mid / low) and
+        <b>characteristics</b> (funky, latin, sexy, dark, emotional…) — faster and with fewer
+        missed tags, so when you DJ you can quickly find the right song for any moment in the set.</p>
+      </div>
     </div>
 
     <!-- SETS (future mockup) -->

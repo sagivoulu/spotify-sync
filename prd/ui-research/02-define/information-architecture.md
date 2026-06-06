@@ -25,10 +25,10 @@ If the UI needs data the `--json` doesn't expose, that's a finding to feed back 
 │  TABS (tab-per-category):                                                      │
 │   ● Home        positive overview + Run sync    (PHASE 1 — landing view)       │
 │   ● Tracks      all songs, art, preview, filters(PHASE 1 — anchor view)        │
+│   ◐ Tagging     tag assist                       (Phase 2 — coming-soon tab)    │
 │   ◐ Sets        past sets → publish to Spotify   (Phase 3 — preview/mockup)     │
 │   ● Activity    action log (syncs, removals…)   (PHASE 1 — light)              │
-│   ○ Tagging     tag assist                       (Phase 2)                     │
-│   ○ Coverage    event-readiness smartlists       (Phase 2)                     │
+│   ○ Coverage    event-readiness smartlists       (Phase 2 — not yet a tab)      │
 └───────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -113,6 +113,11 @@ Removed; none for All.
 - Drill into a run's per-run log file.
 - **Note:** a true *play/set History* (the sets the DJ actually played) is a different,
   **Phase 3** concept — don't conflate. The "History" name is reserved for that.
+
+### Tagging (Phase 2) — coming-soon tab
+A visible tab showing a **coming-soon** card: openbeat will help tag music (energy +
+characteristics) faster, with fewer missed tags. No functionality yet — surfaced to
+communicate the roadmap when showing the prototype for feedback.
 
 ### Sets (Phase 3) — preview tab
 A visible tab with a **mockup** of the future sets feature (tab tagged "Soon"): a record of

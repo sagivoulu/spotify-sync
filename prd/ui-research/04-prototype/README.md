@@ -31,8 +31,11 @@ cd prd/ui-research/04-prototype && python3 -m http.server 8765
   live behind a far-corner **notifications bell** (dot when unread; updates grouped by version
   with relative time); the action log is in its own **Activity** tab. Reframed from the old
   problems-first "Dashboard".
-- **Tabs:** Home · Tracks · **Sets** (Phase 3 preview/mockup) · Activity. The old **Statistics**
-  tab was removed (counts already live in Home + Tracks).
+- **Tabs:** Home · Tracks · **Tagging** (Phase 2 coming-soon) · **Sets** (Phase 3
+  preview/mockup) · Activity. The old **Statistics** tab was removed (counts already live in
+  Home + Tracks).
+- **Tagging** (coming-soon): a tab with a coming-soon card explaining openbeat will help tag
+  music (energy + characteristics) faster, with fewer missed tags.
 - **Sets** (preview): a mockup of the future sets feature — past sets (venue · date · duration ·
   tracks) with Publish-to-Spotify / Export actions; marked "Soon".
 - **Online/offline:** offline shows a calm banner and disables internet-only actions (Run sync,
