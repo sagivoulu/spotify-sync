@@ -24,7 +24,7 @@ plus its findings/artifacts.
 | 1 | **Discovery** — research the problem & the user | `01-discovery/` | 🟡 In progress |
 | 2 | **Define** — synthesize into a problem statement, IA, flows | `02-define/` | ✅ Complete |
 | 3 | **Ideate** — sketch many solution directions | `03-ideate/` | ✅ Complete |
-| 4 | **Prototype** — wireframe → mockup → clickable | `04-prototype/` | ⬜ Not started |
+| 4 | **Prototype** — wireframe → mockup → clickable | `04-prototype/` | 🟡 In progress |
 | 5 | **Test & iterate** — usability test, refine | `05-test-iterate/` | ⬜ Not started |
 | → | **Handoff** — write the active UI PRD | `prd/<NN>-ui-app.md` | ⬜ Not started |
 

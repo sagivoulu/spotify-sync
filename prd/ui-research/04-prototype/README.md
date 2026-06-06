@@ -1,26 +1,46 @@
 # Phase 4 — Prototype
 
-> Status: ⬜ Not started
-> Goal: make the chosen direction concrete and testable. Climb the fidelity ladder —
-> don't skip rungs.
+> Status: 🟡 In progress (Phase 1 screens built; pending Sagiv review)
+> Goal: take the chosen Ideate direction to a testable fidelity in the Spotify-like visual
+> language. Climb the ladder: wireframe (done in Ideate) → **clickable mockup (here)**.
 
+## What's here
+
+- **`index.html`** — a **throwaway, self-contained, clickable prototype** of the Phase 1
+  UI. Vanilla HTML/CSS/JS, no dependencies, works offline. Fake data only —
+  **NOT wired to the real core.** It exists to *see and test* the design, and to be the
+  artifact for Phase 5 usability testing. It informs the real build; it does not become it.
+
+### How to open
+
+Open `index.html` directly in a browser, or serve it:
 ```
-paper sketch → wireframe (grey boxes) → mockup (real visuals) → clickable prototype
+cd prd/ui-research/04-prototype && python3 -m http.server 8765
+# then visit http://localhost:8765/index.html
 ```
 
-## Plan
+### What's implemented (matches the Ideate direction)
 
-- **Wireframes** first: layout + content, no color/polish.
-- **Mockups**: apply visual design, leaning on an existing UI kit (don't design buttons
-  from scratch).
-- **Interactive prototype**: link screens so the core flows are clickable for testing.
-- **Tooling:** Figma (default) for wireframes/mockups/prototype; Excalidraw or paper for
-  the earliest sketches.
+- **Dashboard** (landing): readiness verdict (ready/attention states) · Run sync with
+  simulated live progress · attention list (failed / duplicates / removed) with
+  Review/Prune actions · summary line.
+- **Tracks**: status filter chips · Spotify-style art-forward rows (art, title, status,
+  artist · tags · BPM, duration) · click a row → **side panel** with detail and
+  **context-aware actions** (failed → Retry/Import; downloaded → Preview/Replace;
+  removed → Prune/Re-add).
+- **Wired click-through**: Dashboard attention row → Tracks pre-filtered → side panel.
+- **History** & **Statistics**: light stubs.
+- Visual language: Spotify-like dark theme (per Sagiv's stated preference). Album art shown
+  (placeholder color blocks in the prototype; real cover art exists in the pipeline).
 
-## Planned outputs
+### Verified
 
-- Clickable prototype of the 3–5 core flows defined in Phase 2.
+Rendered and click-tested in a browser (Playwright): Dashboard verdict + attention list,
+tab nav, Tracks list + filters, and the side panel with context-aware actions all work.
+(Only console noise is a harmless favicon 404.)
 
-## Findings
+## Next
 
-_(none yet)_
+- Sagiv review / feedback round on the prototype.
+- Then **Phase 5 — Test & Iterate**: usability-test this with a few WCS DJs (task-based,
+  think-aloud), fix findings, and finalize for the active UI PRD.
