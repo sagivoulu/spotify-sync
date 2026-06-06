@@ -20,7 +20,7 @@ Given a Spotify playlist URL, download every track in it as a tagged MP3 to a lo
 - Songs that don't exist in any source catalog (the YT2MP3 workflow). See `future/manual-imports.md`.
 - Exporting played sets back to Spotify. See `future/set-export.md`.
 - Tagging help (energy/vibe metadata). See `future/tagging-assistance.md`.
-- Graphical UI. CLI only in v1. See `future/ui-app.md`.
+- Graphical UI. CLI only in v1. See `02-ui-app.md`.
 - Multiple independent libraries (separate roots, separate configs). One library per install in v1, but the DB schema and storage location are designed so adding more later is additive. See `future/multi-library.md`.
 - Auto-retry of `needs_manual` records. Once marked, only an explicit `import` resolves it.
 - Match-quality safeguards (duration check, candidate-list selection). Discussed as a future iteration on top of v1's auto-pick.

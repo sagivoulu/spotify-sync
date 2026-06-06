@@ -44,7 +44,7 @@ Other WCS DJs with a similar workflow. **Out of scope for v1**, but design choic
 
 These shape future work and inform v1 design choices (so we don't paint ourselves into a corner). Details in `future/`.
 
-- **Graphical UI.** Likely an Electron app sitting on top of the same core. CLI remains a first-class entry point even after the UI ships. See `future/ui-app.md`.
+- **Graphical UI (OpenBeat).** Now an active PRD — an Electron desktop app on top of the same core, plus a product rename from `spotify-sync` to `openbeat`. CLI remains a first-class entry point. See `02-ui-app.md`.
 - **Multiple source catalogs** (e.g. Apple Music alongside Spotify, or eventually replacing it). v1's DB schema is already source-agnostic (`source` + `source_id` columns), so this is additive. See `future/multi-source.md`.
 - **Multiple independent libraries.** One install, multiple separate library roots, each with its own config. v1's DB schema is already scoped by `library_id` so this is additive. See `future/multi-library.md`.
 - **Multiple playlists per library** (e.g. mood playlist alongside the main WCS playlist). See `future/secondary-playlists.md`.
@@ -71,9 +71,9 @@ These shape future work and inform v1 design choices (so we don't paint ourselve
 ## PRD layout
 
 - `00-product-overview.md` — this file.
-- `01-download-sync.md` — the v1 feature (the only PRD currently in scope to implement).
+- `01-download-sync.md` — the v1 CLI feature (sync/status/prune/import/auth/doctor). Built.
+- `02-ui-app.md` — OpenBeat: Electron desktop UI over the same core + product rename. Active.
 - `future/` — stubs for known-planned features. Not specs; intent + rough shape. Update when promoted to active work.
-  - `ui-app.md` — graphical UI (Electron-leaning).
   - `multi-source.md` — additional source catalogs beyond Spotify (Apple Music, etc.).
   - `multi-library.md` — multiple independent libraries on one install.
   - `secondary-playlists.md` — multiple playlists from a source into one library.
