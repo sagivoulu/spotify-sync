@@ -12,6 +12,10 @@ hero:
     - theme: alt
       text: Commands
       link: /commands/auth
+    - theme: alt
+      text: ✦ Sneak peek the upcoming app
+      link: https://sagivoulu.github.io/spotify-sync/mockup.html
+      target: _blank
 
 features:
   - title: Playlist-to-disk sync
@@ -21,3 +25,15 @@ features:
   - title: Metadata-ready
     details: Downloads as MP3 at 320 kbps. Ready to tag with energy and vibe metadata in VirtualDJ or similar.
 ---
+
+## A major update is coming
+
+**openbeat** — a desktop-app evolution of spotify-sync — is in design. It keeps your library
+downloaded, healthy, and ready to play (online or offline), with browsing, tagging help, and
+set tools.
+
+Have a peek at the early, clickable mockup and tell me what you think — your feedback shapes it:
+
+[**Open the openbeat mockup →**](https://sagivoulu.github.io/spotify-sync/mockup.html)
+
+<small>Early mockup · fake data · for feedback only.</small>

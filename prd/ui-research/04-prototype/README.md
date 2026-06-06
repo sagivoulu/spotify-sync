@@ -13,22 +13,23 @@
 
 ### Where the mockup file lives
 
-The mockup HTML now lives at **`/docs/mockup.html`** (repo root `docs/` folder), so GitHub
-Pages can serve it and the PRD can reference a single canonical file. Open it directly in a
-browser, or serve locally:
+The mockup is a **static asset of the VitePress docs site**: `docs/public/mockup.html`.
+VitePress copies `public/` to the site root, so it's served at `/spotify-sync/mockup.html`.
+Open the file directly in a browser, or run the docs dev server:
 ```
-cd docs && python3 -m http.server 8765
-# then visit http://localhost:8765/mockup.html
+npm run docs:dev        # then open the printed URL + /mockup.html
 ```
 
 ### Live demo (shareable link)
 
-- Landing (announcement): **https://sagivoulu.github.io/spotify-sync/**
-- Mockup directly: **https://sagivoulu.github.io/spotify-sync/mockup.html**
+- Mockup: **https://sagivoulu.github.io/spotify-sync/mockup.html**
+- The docs home (**https://sagivoulu.github.io/spotify-sync/**) has a "major update is coming"
+  note + a hero/nav link to the mockup.
 
-Served by GitHub Pages from the **`/docs`** folder. The repo is public; the link is unlisted
-(not in the top-level README, not advertised). **It auto-updates when you push** the branch
-Pages is set to serve — no separate deploy step or `gh-pages` branch to maintain.
+Deployed as part of the existing **VitePress docs site** via `.github/workflows/docs.yml`
+(builds on push to `main`). So the mockup goes live with the normal docs — no separate Pages
+config, no `gh-pages` branch, no deploy script. Edit `docs/public/mockup.html`, merge to `main`,
+and the docs deploy publishes it. The repo is public; the link is unlisted (not advertised).
 
 ### What's implemented (matches the Ideate direction)
 

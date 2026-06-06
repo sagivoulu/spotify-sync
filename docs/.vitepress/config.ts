@@ -23,6 +23,7 @@ export default defineConfig({
         items: commandItems,
       },
       { text: 'Troubleshooting', link: '/troubleshooting' },
+      { text: '✦ openbeat preview', link: 'https://sagivoulu.github.io/spotify-sync/mockup.html' },
     ],
 
     sidebar: [
