@@ -30,9 +30,10 @@ cd prd/ui-research/04-prototype && python3 -m http.server 8765
   Review/Prune actions · summary line.
 - **Tracks**: a unified **control bar** — free-text **search** (title/artist) + **adaptive**
   status filter chips (Pending / Failed / Removed — grayed when empty, colored with a count
-  when populated; no standing Downloaded filter) + **sort** + a **filters button**
-  (Linear-style funnel icon, top-right) that opens VirtualDJ-style tag/energy filtering
-  (Phase 2 stub) · Spotify-style
+  when populated; no standing Downloaded filter) + an interactive **sort** icon button
+  (menu: date added / title / artist / BPM / status) + a **filters button** (Linear-style
+  funnel icon, top-right) that opens VirtualDJ-style tag/energy filtering (Phase 2 stub) ·
+  Spotify-style
   art-forward rows · **play appears on hover over the album art** (no misleading ▶ arrow) ·
   click a row → **side panel** with detail and **context-aware actions** (failed →
   Retry/Import; downloaded → Preview/Replace; removed → Prune/Re-add).
@@ -61,6 +62,8 @@ cd prd/ui-research/04-prototype && python3 -m http.server 8765
   and sort into one control bar (search is a Tracks operation). Added a **filters button**
   (Linear-style funnel icon, top-right) as the entry to VirtualDJ-style tag + energy
   filtering (Phase 2 stub).
+- Made **sort** an interactive icon button (styled like the filters button) with a working
+  sort menu (date added / title / artist / BPM / status).
 
 ### Verified
 

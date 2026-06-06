@@ -62,7 +62,8 @@ Pattern borrowed from Lexicon's "scans → actionable problem lists."
   - **Adaptive status chips** (Pending / Failed / Removed) — grayed & non-clickable when
     empty, colored with a count when populated. **No standing `Downloaded` filter** (browse
     "All"; a Downloaded-only view returns in Phase 2 for tagging).
-  - **Sort**.
+  - **Sort** — an icon button (same visual style as the filters button) opening a menu of
+    sort fields (date added, title, artist, BPM, status).
   - **Filters button** — a Linear-style **funnel icon** (three decreasing lines) at the
     top-right of the bar; opens the filter panel. *Future (Phase 2):* VirtualDJ-style
     filtering — combine **tags** (e.g. sexy, dark) + **energy** (e.g. low) with free-text

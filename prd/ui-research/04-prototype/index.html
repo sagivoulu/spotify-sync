@@ -117,6 +117,14 @@
   .filterbtn{display:grid;place-items:center;width:34px;height:32px;border-radius:8px;background:var(--surface2);border:1px solid var(--line);color:var(--muted);cursor:pointer}
   .filterbtn:hover{color:var(--text);background:var(--hover)}
   .filterbtn.on{color:var(--text);background:var(--hover);border-color:#3a4256}
+  .menuwrap{position:relative;margin-left:auto}
+  .menu{position:absolute;top:40px;right:0;z-index:20;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:6px;min-width:170px;display:none;box-shadow:0 10px 28px rgba(0,0,0,.45)}
+  .menu.on{display:block}
+  .menulabel{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--faint);padding:6px 10px 4px}
+  .menuitem{padding:8px 10px;border-radius:6px;font-size:13px;color:var(--text);cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px}
+  .menuitem:hover{background:var(--hover)}
+  .menuitem .chk{color:var(--green);opacity:0}
+  .menuitem.sel .chk{opacity:1}
   .futurenote{display:none;color:var(--faint);font-size:12px;background:var(--surface);border:1px dashed var(--line);border-radius:8px;padding:10px 12px;margin:-6px 0 14px;flex:0 0 auto}
   .futurenote.on{display:block}
   .chip{padding:7px 14px;border-radius:999px;background:var(--surface2);border:1px solid var(--line);color:var(--muted);cursor:pointer;font-size:12px;font-weight:600}
@@ -226,7 +234,19 @@
       <div class="controls">
         <input id="search" class="tsearch" type="text" placeholder="Search title or artist…" autocomplete="off">
         <div class="filters" id="filters"></div>
-        <div class="sort" id="sort">sort: Date added ▾</div>
+        <div class="menuwrap">
+          <button class="filterbtn" id="sortBtn" aria-label="Sort" title="Sort">
+            <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="2.5" y1="4" x2="9" y2="4"/><line x1="2.5" y1="8" x2="7" y2="8"/><line x1="2.5" y1="12" x2="5" y2="12"/><path d="M11.5 3.5 v9 M9.5 10.5 l2 2 l2 -2"/></svg>
+          </button>
+          <div class="menu" id="sortMenu">
+            <div class="menulabel">Sort by</div>
+            <div class="menuitem sel" data-s="added">Date added <span class="chk">✓</span></div>
+            <div class="menuitem" data-s="title">Title <span class="chk">✓</span></div>
+            <div class="menuitem" data-s="artist">Artist <span class="chk">✓</span></div>
+            <div class="menuitem" data-s="bpm">BPM <span class="chk">✓</span></div>
+            <div class="menuitem" data-s="status">Status <span class="chk">✓</span></div>
+          </div>
+        </div>
         <button class="filterbtn" id="filterBtn" aria-label="Filters" title="Filter by tags & energy (like VirtualDJ) — planned for Phase 2">
           <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><line x1="2.5" y1="4.5" x2="13.5" y2="4.5"/><line x1="4.5" y1="8" x2="11.5" y2="8"/><line x1="6.5" y1="11.5" x2="9.5" y2="11.5"/></svg>
         </button>
@@ -353,8 +373,15 @@ $("#runSync").onclick=()=>{
 };
 
 // ---- tracks ----------------------------------------------------------------
-let filter="all", query="";
+let filter="all", query="", sortKey="added";
 const STC={pending:"c-pending",failed:"c-failed",removed:"c-removed"};
+const SORTERS={
+  added:(a,b)=>a.idx-b.idx,
+  title:(a,b)=>a.t.t.localeCompare(b.t.t),
+  artist:(a,b)=>a.t.a.localeCompare(b.t.a),
+  bpm:(a,b)=>(b.t.bpm||0)-(a.t.bpm||0),
+  status:(a,b)=>a.t.st.localeCompare(b.t.st),
+};
 function renderFilters(){
   const counts={pending:COUNTS.pending,failed:COUNTS.failed,removed:COUNTS.removed};
   let html='<div class="chip" data-f="all">All</div>';
@@ -377,6 +404,7 @@ function renderTracks(){
   const rows=TRACKS.map((t,idx)=>({t,idx}))
     .filter(o=>filter==="all"||o.t.st===filter)
     .filter(o=>!query || (o.t.t+" "+o.t.a).toLowerCase().includes(query));
+  rows.sort(SORTERS[sortKey]);
   list.innerHTML=rows.map(({t,idx})=>`
     <div class="trow" data-idx="${idx}">
       <div class="art" style="background:${art(idx)}">${t.t[0]}<span class="pov">▶</span></div>
@@ -434,6 +462,14 @@ function renderStats(){
 $("#healthBadge").onclick=()=>showView("dashboard");
 $("#search").oninput=e=>{ query=e.target.value.trim().toLowerCase(); renderTracks(); };
 $("#filterBtn").onclick=()=>{ $("#filterBtn").classList.toggle("on"); $("#futureNote").classList.toggle("on"); };
+$("#sortBtn").onclick=e=>{ e.stopPropagation(); $("#sortMenu").classList.toggle("on"); $("#sortBtn").classList.toggle("on"); };
+document.querySelectorAll("#sortMenu .menuitem").forEach(mi=>mi.onclick=()=>{
+  sortKey=mi.dataset.s;
+  document.querySelectorAll("#sortMenu .menuitem").forEach(x=>x.classList.toggle("sel",x===mi));
+  $("#sortMenu").classList.remove("on"); $("#sortBtn").classList.remove("on");
+  renderTracks();
+});
+document.addEventListener("click",()=>{ $("#sortMenu").classList.remove("on"); $("#sortBtn").classList.remove("on"); });
 renderHealth(); renderDashboard(); renderFilters(); renderTracks(); renderActivity(); renderStats();
 </script>
 </body>
