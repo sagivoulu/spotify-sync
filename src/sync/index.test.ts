@@ -1,3 +1,6 @@
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { DownloadResult } from '../backend/index.js';
 import { BackendError } from '../backend/index.js';
@@ -13,6 +16,7 @@ import { createNoopRunLogger } from '../logging/index.js';
 import type { RunLogger } from '../logging/index.js';
 import type { SpotifyClient, SpotifyTrack } from '../spotify/index.js';
 import { createFakeBackend } from '../testing/fake-backend.js';
+import type { RunStartEvent } from './events.js';
 import { FatalSyncError, runSync } from './index.js';
 import type { SyncEvent } from './index.js';
 
@@ -176,6 +180,7 @@ describe('runSync — new track download', () => {
     expect(result.downloaded).toBe(1);
     expect(result.failed).toBe(0);
     expect(result.ok).toBe(true);
+    expect(result.logPath).toMatch(/spotify-sync[/\\]logs[/\\].+\.log$/);
 
     // DB state
     const row = opts.db
@@ -213,6 +218,8 @@ describe('runSync — new track download', () => {
     expect(events.some((e) => e.type === 'run-start')).toBe(true);
     expect(events.some((e) => e.type === 'track-downloaded')).toBe(true);
     expect(events.some((e) => e.type === 'run-finish')).toBe(true);
+    const startEvent = events.find((e): e is RunStartEvent => e.type === 'run-start');
+    expect(startEvent?.logPath).toBe(result.logPath);
     opts.db.close();
   });
 });
@@ -776,9 +783,7 @@ describe('runSync — missing file re-download', () => {
     const { events, onEvent } = collectEvents();
     await runSync({ ...opts, backend: createFakeBackend(), fileExists: () => false, onEvent });
 
-    const startEvent = events.find((e) => e.type === 'run-start') as
-      | import('./events.js').RunStartEvent
-      | undefined;
+    const startEvent = events.find((e): e is RunStartEvent => e.type === 'run-start');
     expect(startEvent?.restoredCount).toBe(1);
     opts.db.close();
   });
@@ -815,6 +820,29 @@ describe('runSync — sync_runs tracking', () => {
 // ---------------------------------------------------------------------------
 
 describe('runSync — per-run logging', () => {
+  it('creates an XDG run log file and writes fake subprocess output', async () => {
+    const stateDir = mkdtempSync(join(tmpdir(), 'spotify-sync-state-test-'));
+    const env = { XDG_STATE_HOME: stateDir };
+    const config = makeConfig();
+    const track = makeTrack();
+    const opts = makeOpts(config, [track]);
+    const { createRunLogger: _createRunLogger, ...runOpts } = opts;
+
+    try {
+      const result = await runSync({ ...runOpts, env });
+
+      expect(result.logPath.startsWith(join(stateDir, 'spotify-sync', 'logs'))).toBe(true);
+      expect(result.logPath.endsWith('.log')).toBe(true);
+      const content = readFileSync(result.logPath, 'utf-8');
+      expect(content).toContain('subprocess-output');
+      expect(content).toContain('fake yt-dlp search stdout');
+      expect(content).toContain('fake download stderr');
+    } finally {
+      opts.db.close();
+      rmSync(stateDir, { recursive: true, force: true });
+    }
+  });
+
   it('calls logger.close() after a successful run', async () => {
     const config = makeConfig();
     const track = makeTrack();
@@ -842,6 +870,40 @@ describe('runSync — per-run logging', () => {
     opts.db.close();
   });
 
+  it('logs subprocess-output entries from the backend log sink', async () => {
+    const config = makeConfig();
+    const track = makeTrack();
+    const recording = makeRecordingLogger();
+
+    const opts = makeOpts(config, [track]);
+    await runSync({ ...opts, createRunLogger: (_runId, _runUuid) => recording.logger });
+
+    const subprocessEntries = recording.entries.filter((e) => e.msg === 'subprocess-output');
+    expect(subprocessEntries.some((e) => e.obj.phase === 'search')).toBe(true);
+    expect(subprocessEntries.some((e) => e.obj.phase === 'download')).toBe(true);
+    expect(subprocessEntries.some((e) => e.obj.chunk === 'fake download stderr')).toBe(true);
+    opts.db.close();
+  });
+
+  it('logs download-complete with track id, candidate URL, exit code, and duration', async () => {
+    const config = makeConfig();
+    const track = makeTrack();
+    const recording = makeRecordingLogger();
+
+    const opts = makeOpts(config, [track]);
+    await runSync({ ...opts, createRunLogger: (_runId, _runUuid) => recording.logger });
+
+    const completeEntry = recording.entries.find((e) => e.msg === 'download-complete');
+    expect(completeEntry?.obj).toMatchObject({
+      trackId: expect.any(Number),
+      candidateUrl: 'https://www.youtube.com/watch?v=fake123',
+      exitCode: 0,
+      ok: true,
+    });
+    expect(completeEntry?.obj.durationMs).toEqual(expect.any(Number));
+    opts.db.close();
+  });
+
   it('logs download-failed with error string when download returns success:false', async () => {
     const config = makeConfig({ download: { ...makeConfig().download, retry_count: 1 } });
     const track = makeTrack();
@@ -855,6 +917,32 @@ describe('runSync — per-run logging', () => {
     const failEntry = recording.entries.find((e) => e.msg === 'download-failed');
     expect(failEntry).toBeDefined();
     expect(failEntry?.obj.error).toBe('yt-dlp: HTTP 429 rate limited');
+    opts.db.close();
+  });
+
+  it('logs download-complete metadata when a download returns success:false', async () => {
+    const config = makeConfig({ download: { ...makeConfig().download, retry_count: 1 } });
+    const track = makeTrack();
+    const recording = makeRecordingLogger();
+
+    const opts = makeOpts(config, [track], {
+      downloadResult: {
+        success: false,
+        error: 'yt-dlp: HTTP 429 rate limited',
+        exitCode: 7,
+        durationMs: 123,
+      } as DownloadResult,
+    });
+    await runSync({ ...opts, createRunLogger: (_runId, _runUuid) => recording.logger });
+
+    const completeEntry = recording.entries.find((e) => e.msg === 'download-complete');
+    expect(completeEntry?.obj).toMatchObject({
+      trackId: expect.any(Number),
+      candidateUrl: 'https://www.youtube.com/watch?v=fake123',
+      exitCode: 7,
+      durationMs: 123,
+      ok: false,
+    });
     opts.db.close();
   });
 

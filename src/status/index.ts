@@ -1,10 +1,12 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
+import type { Dirent } from 'node:fs';
+import { extname, join, relative } from 'node:path';
 import type Database from 'better-sqlite3';
 import type { SubprocessRunner } from '../backend/index.js';
 import { ConfigError, loadConfig } from '../config/index.js';
 import type { ConfigInput } from '../config/index.js';
 import { openDatabase } from '../db/connection.js';
-import { countTracksByStatus, listTracksByStatus } from '../db/tracks.js';
+import { countTracksByStatus, listTrackedFilePaths, listTracksByStatus } from '../db/tracks.js';
 import type { StatusTrackRow } from '../db/tracks.js';
 import type { RunDoctorOptions, RunDoctorResult } from '../doctor/index.js';
 import { runDoctor } from '../doctor/index.js';
@@ -12,6 +14,7 @@ import { composeAbsolutePath } from '../library/index.js';
 import type { SpotifyClient } from '../spotify/index.js';
 import type {
   LibraryCounts,
+  LibraryScanError,
   LibraryStatus,
   PlaylistStatus,
   StatusReport,
@@ -53,6 +56,11 @@ export interface GetStatusOptions {
    */
   fileExists?: (absolutePath: string) => boolean;
   /**
+   * Injectable local audio scanner. Defaults to a read-only recursive filesystem
+   * scan of the configured library path.
+   */
+  scanLocalAudioFiles?: LocalAudioFileScanner;
+  /**
    * Injectable runDoctor implementation. Defaults to the real runDoctor.
    * Tests inject a canned result to avoid network / filesystem side-effects.
    */
@@ -81,6 +89,7 @@ export async function getStatus(opts: GetStatusOptions = {}): Promise<StatusRepo
     fetchFn,
     db: injectedDb,
     fileExists = existsSync,
+    scanLocalAudioFiles: scanLocalAudioFilesFn = scanLocalAudioFiles,
     runDoctorFn = runDoctor,
   } = opts;
 
@@ -137,6 +146,7 @@ export async function getStatus(opts: GetStatusOptions = {}): Promise<StatusRepo
     liveTotal,
     injectedDb,
     fileExists,
+    scanLocalAudioFiles: scanLocalAudioFilesFn,
   });
 
   // -------------------------------------------------------------------------
@@ -167,10 +177,20 @@ interface CollectLibraryOpts {
   liveTotal: number | null;
   injectedDb: Database.Database | undefined;
   fileExists: (path: string) => boolean;
+  scanLocalAudioFiles: LocalAudioFileScanner;
 }
 
 async function collectLibraryStatus(opts: CollectLibraryOpts): Promise<LibraryStatus> {
-  const { configured, configError, downloadDir, dbPath, libraryId, injectedDb, fileExists } = opts;
+  const {
+    configured,
+    configError,
+    downloadDir,
+    dbPath,
+    libraryId,
+    injectedDb,
+    fileExists,
+    scanLocalAudioFiles,
+  } = opts;
 
   if (!configured || dbPath === null || libraryId === null || downloadDir === null) {
     return {
@@ -182,6 +202,8 @@ async function collectLibraryStatus(opts: CollectLibraryOpts): Promise<LibrarySt
       notYetSynced: null,
       notDownloaded: [],
       missingFiles: [],
+      untrackedFiles: [],
+      scanErrors: [],
       failed: [],
       detail: configError,
     };
@@ -203,6 +225,8 @@ async function collectLibraryStatus(opts: CollectLibraryOpts): Promise<LibrarySt
       notYetSynced: null,
       notDownloaded: [],
       missingFiles: [],
+      untrackedFiles: [],
+      scanErrors: [],
       failed: [],
     };
   } else {
@@ -219,6 +243,8 @@ async function collectLibraryStatus(opts: CollectLibraryOpts): Promise<LibrarySt
         notYetSynced: null,
         notDownloaded: [],
         missingFiles: [],
+        untrackedFiles: [],
+        scanErrors: [],
         failed: [],
       };
     }
@@ -233,11 +259,19 @@ async function collectLibraryStatus(opts: CollectLibraryOpts): Promise<LibrarySt
       (row) =>
         row.file_path !== null && !fileExists(composeAbsolutePath(downloadDir, row.file_path)),
     );
+    const trackedFilePaths = new Set(
+      listTrackedFilePaths(db, { libraryId }).map(normalizeRelativePath),
+    );
+    const localScan = scanLocalAudioFiles(downloadDir);
+    const untrackedFiles = localScan.files.filter(
+      (filePath) => !trackedFilePaths.has(normalizeRelativePath(filePath)),
+    );
 
     const counts: LibraryCounts = {
       downloaded: rawCounts.downloaded,
       pending: rawCounts.pending,
       missingFiles: missingFileRows.length,
+      untrackedFiles: untrackedFiles.length,
       failed: rawCounts.failed,
       needsManual: rawCounts.needs_manual,
       knownInPlaylist:
@@ -259,6 +293,8 @@ async function collectLibraryStatus(opts: CollectLibraryOpts): Promise<LibrarySt
       notYetSynced,
       notDownloaded: toTrackListItems(pendingRows),
       missingFiles: toTrackListItems(missingFileRows),
+      untrackedFiles,
+      scanErrors: localScan.errors,
       failed: toTrackListItems(failedRows, true),
     };
   } catch {
@@ -272,6 +308,8 @@ async function collectLibraryStatus(opts: CollectLibraryOpts): Promise<LibrarySt
       notYetSynced: null,
       notDownloaded: [],
       missingFiles: [],
+      untrackedFiles: [],
+      scanErrors: [],
       failed: [],
     };
   } finally {
@@ -279,6 +317,91 @@ async function collectLibraryStatus(opts: CollectLibraryOpts): Promise<LibrarySt
       db.close();
     }
   }
+}
+
+export interface LocalAudioFileScanResult {
+  files: string[];
+  errors: LibraryScanError[];
+}
+
+type LocalAudioFileScanner = (libraryPath: string) => LocalAudioFileScanResult;
+
+const LOCAL_AUDIO_EXTENSIONS = new Set([
+  '.aac',
+  '.aif',
+  '.aiff',
+  '.alac',
+  '.amr',
+  '.ape',
+  '.au',
+  '.caf',
+  '.dff',
+  '.dsf',
+  '.flac',
+  '.m4a',
+  '.m4b',
+  '.m4p',
+  '.mp2',
+  '.mp3',
+  '.oga',
+  '.ogg',
+  '.opus',
+  '.ra',
+  '.wav',
+  '.weba',
+  '.wma',
+  '.wv',
+]);
+
+export function scanLocalAudioFiles(libraryPath: string): LocalAudioFileScanResult {
+  const files: string[] = [];
+  const errors: LibraryScanError[] = [];
+
+  function visit(dir: string): void {
+    let entries: Dirent[];
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch (err) {
+      errors.push(toLibraryScanError(libraryPath, dir, err));
+      return;
+    }
+
+    for (const entry of entries) {
+      const absolutePath = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        visit(absolutePath);
+      } else if (entry.isFile() && LOCAL_AUDIO_EXTENSIONS.has(extname(entry.name).toLowerCase())) {
+        const relativePath = normalizeRelativePath(relative(libraryPath, absolutePath));
+        if (relativePath !== '') {
+          files.push(relativePath);
+        }
+      }
+    }
+  }
+
+  visit(libraryPath);
+  return {
+    files: files.sort((a, b) => a.localeCompare(b)),
+    errors: errors.sort((a, b) => a.path.localeCompare(b.path)),
+  };
+}
+
+function normalizeRelativePath(filePath: string): string {
+  return filePath.replaceAll('\\', '/');
+}
+
+function toLibraryScanError(libraryPath: string, path: string, err: unknown): LibraryScanError {
+  const relativePath = normalizeRelativePath(relative(libraryPath, path)) || '.';
+  const code =
+    typeof err === 'object' && err !== null && 'code' in err && typeof err.code === 'string'
+      ? err.code
+      : undefined;
+  const message = err instanceof Error ? err.message : String(err);
+  return {
+    path: relativePath,
+    ...(code !== undefined ? { code } : {}),
+    message,
+  };
 }
 
 function toTrackListItems(rows: StatusTrackRow[], includeError = false): TrackListItem[] {

@@ -1,0 +1,149 @@
+name: Publish to npm
+
+on:
+  workflow_run:
+    workflows: [CI]
+    branches: [main]
+    types: [completed]
+
+# OIDC for npm Trusted Publishing; contents write is needed to create release tags.
+permissions:
+  contents: write
+  id-token: write
+  pull-requests: read
+
+jobs:
+  publish:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Resolve release version
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          gh api \
+            -H "Accept: application/vnd.github+json" \
+            "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/pulls" \
+            > /tmp/pulls.json
+
+          node <<'NODE'
+          const fs = require('node:fs');
+          const cp = require('node:child_process');
+
+          const pulls = JSON.parse(fs.readFileSync('/tmp/pulls.json', 'utf8'));
+          const pr = pulls.find((candidate) => candidate.merged_at) || pulls[0];
+          if (!pr) {
+            throw new Error(`Could not find a merged PR for ${process.env.HEAD_SHA}`);
+          }
+
+          const title = pr.title || '';
+          const titleMatch = title.match(/^([a-z]+)(?:\([^)]+\))?(!)?:\s+.+$/i);
+          if (!titleMatch) {
+            throw new Error(`PR #${pr.number} title must use Conventional Commit format, e.g. "fix: handle missing config"`);
+          }
+
+          const type = titleMatch[1].toLowerCase();
+          const isBreaking = Boolean(titleMatch[2]) || /(?:^|\n)BREAKING CHANGE:/i.test(pr.body || '');
+          const bumpByType = {
+            feat: 'minor',
+            fix: 'patch',
+            perf: 'patch',
+            revert: 'patch',
+            docs: 'none',
+            ci: 'none',
+            chore: 'none',
+            test: 'none',
+            build: 'none',
+            refactor: 'none',
+            style: 'none',
+          };
+          const bump = isBreaking ? 'major' : bumpByType[type];
+          if (!bump) {
+            throw new Error(`PR #${pr.number} uses unsupported Conventional Commit type "${type}"`);
+          }
+
+          const name = require('./package.json').name;
+          let latest = '0.0.0';
+          try {
+            latest = cp.execFileSync('npm', ['view', name, 'version'], {
+              encoding: 'utf8',
+              stdio: ['ignore', 'pipe', 'ignore'],
+            }).trim();
+          } catch {
+            // First publish for a package starts from the package.json version.
+            latest = require('./package.json').version;
+          }
+
+          let nextVersion = latest;
+          if (bump !== 'none') {
+            cp.execFileSync('npm', ['version', latest, '--no-git-tag-version', '--allow-same-version'], {
+              stdio: ['ignore', 'ignore', 'inherit'],
+            });
+            nextVersion = cp.execFileSync('npm', ['version', bump, '--no-git-tag-version'], {
+              encoding: 'utf8',
+              stdio: ['ignore', 'pipe', 'inherit'],
+            }).trim().replace(/^v/, '');
+          }
+
+          const out = fs.createWriteStream(process.env.GITHUB_OUTPUT, { flags: 'a' });
+          out.write(`name=${name}\n`);
+          out.write(`latest_version=${latest}\n`);
+          out.write(`next_version=${nextVersion}\n`);
+          out.write(`bump=${bump}\n`);
+          out.write(`pr_type=${type}\n`);
+          out.write(`pr_number=${pr.number}\n`);
+          NODE
+
+      - name: Build
+        run: npm run build
+
+      - name: Check package version
+        id: package
+        run: |
+          echo "name=${{ steps.release.outputs.name }}" >> "$GITHUB_OUTPUT"
+          echo "version=${{ steps.release.outputs.next_version }}" >> "$GITHUB_OUTPUT"
+          if npm view "${{ steps.release.outputs.name }}@${{ steps.release.outputs.next_version }}" version >/dev/null 2>&1; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish
+        if: ${{ steps.release.outputs.bump != 'none' && steps.package.outputs.published == 'false' }}
+        run: npm publish
+
+      - name: Tag release
+        if: ${{ steps.release.outputs.bump != 'none' && steps.package.outputs.published == 'false' }}
+        env:
+          VERSION: ${{ steps.release.outputs.next_version }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "v${VERSION}" "${HEAD_SHA}"
+          git push origin "v${VERSION}"
+
+      - name: Skip already-published version
+        if: ${{ steps.package.outputs.published == 'true' }}
+        run: echo "${{ steps.package.outputs.name }}@${{ steps.package.outputs.version }} is already published; skipping."
+
+      - name: Skip package publish
+        if: ${{ steps.release.outputs.bump == 'none' }}
+        run: |
+          echo "PR ${{ steps.release.outputs.pr_number }} type ${{ steps.release.outputs.pr_type }} does not publish an npm version."

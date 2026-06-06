@@ -16,6 +16,40 @@ permissions:
   contents: read
 
 jobs:
+  pr-title:
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate PR title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          node <<'NODE'
+          const title = process.env.PR_TITLE || '';
+          const match = title.match(/^([a-z]+)(?:\([^)]+\))?(!)?:\s+.+$/i);
+          if (!match) {
+            throw new Error(`PR title must use Conventional Commit format, e.g. "fix: handle missing config". Got: ${title}`);
+          }
+
+          const type = match[1].toLowerCase();
+          const supportedTypes = new Set([
+            'feat',
+            'fix',
+            'perf',
+            'revert',
+            'docs',
+            'ci',
+            'chore',
+            'test',
+            'build',
+            'refactor',
+            'style',
+          ]);
+          if (!supportedTypes.has(type)) {
+            throw new Error(`Unsupported PR title type "${type}". Supported types: ${[...supportedTypes].join(', ')}`);
+          }
+          NODE
+
   ci:
     runs-on: ubuntu-latest
     steps:
@@ -42,3 +76,26 @@ jobs:
 
       - name: Test
         run: npm test
+
+      - name: Build docs
+        run: npm run docs:build
+
+  component:
+    runs-on: ubuntu-latest
+    # Component tests are fully hermetic — no secrets or external services needed.
+    # Fork PRs can run them too (no credential gate).
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Component tests
+        run: npm run test:component

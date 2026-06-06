@@ -9,6 +9,7 @@ import { BackendError, configToAudioFormat, createBackendFromConfig } from '../b
 import type { SubprocessRunner } from '../backend/index.js';
 import type { Config, ConfigInput } from '../config/index.js';
 import { loadConfig } from '../config/index.js';
+import { runLogPath } from '../config/paths.js';
 import { initDb } from '../db/index.js';
 import {
   finalizeSyncRun,
@@ -55,6 +56,7 @@ export class FatalSyncError extends Error {
 
 export interface SyncResult {
   runId: number;
+  logPath: string;
   added: number;
   downloaded: number;
   failed: number;
@@ -263,6 +265,7 @@ export async function runSync(opts: RunSyncOptions = {}): Promise<SyncResult> {
   // Generate the log UUID before inserting the run row — the UUID is the
   // log filename, the runId is the DB key. Both are bound into every entry.
   const runLogUuid = randomUUID();
+  const logPath = runLogPath(runLogUuid, env);
   const syncRunId = insertSyncRun(db, { libraryId, source, startedAt: now() });
 
   // Open the per-run log file immediately so a file exists for every run,
@@ -315,6 +318,7 @@ export async function runSync(opts: RunSyncOptions = {}): Promise<SyncResult> {
   logger.info(
     {
       libraryPath: config.library.path,
+      logPath,
       concurrency: config.download.concurrency,
       pendingCount: pendingTracks.length,
       addedCount: added,
@@ -328,6 +332,7 @@ export async function runSync(opts: RunSyncOptions = {}): Promise<SyncResult> {
     type: 'run-start',
     runId: syncRunId,
     libraryPath: config.library.path,
+    logPath,
     concurrency: config.download.concurrency,
     pendingCount: pendingTracks.length,
     addedCount: added,
@@ -363,11 +368,29 @@ export async function runSync(opts: RunSyncOptions = {}): Promise<SyncResult> {
 
             try {
               // Search for a candidate.
-              const candidates = await backend.search({
-                artist: trackRow.artist,
-                title: trackRow.title,
-                durationMs: trackRow.duration_ms ?? undefined,
-              });
+              const candidates = await backend.search(
+                {
+                  artist: trackRow.artist,
+                  title: trackRow.title,
+                  durationMs: trackRow.duration_ms ?? undefined,
+                },
+                {
+                  log: (chunk) =>
+                    logger.info(
+                      {
+                        trackId: trackRow.id,
+                        artist: trackRow.artist,
+                        title: trackRow.title,
+                        attempt: attempts,
+                        phase: 'search',
+                        binary: chunk.binary,
+                        stream: chunk.stream,
+                        chunk: chunk.chunk,
+                      },
+                      'subprocess-output',
+                    ),
+                },
+              );
 
               if (candidates.length === 0 || candidates[0] === undefined) {
                 error = 'No candidates found';
@@ -387,10 +410,46 @@ export async function runSync(opts: RunSyncOptions = {}): Promise<SyncResult> {
                 );
 
                 // Download.
-                const result = await backend.download(candidate, {
-                  outPath,
-                  format: audioFormat,
-                });
+                const downloadStartedAt = Date.now();
+                const result = await backend.download(
+                  candidate,
+                  {
+                    outPath,
+                    format: audioFormat,
+                  },
+                  {
+                    log: (chunk) =>
+                      logger.info(
+                        {
+                          trackId: trackRow.id,
+                          artist: trackRow.artist,
+                          title: trackRow.title,
+                          attempt: attempts,
+                          phase: 'download',
+                          binary: chunk.binary,
+                          stream: chunk.stream,
+                          chunk: chunk.chunk,
+                        },
+                        'subprocess-output',
+                      ),
+                  },
+                );
+                const durationMs = result.durationMs ?? Date.now() - downloadStartedAt;
+                const exitCode = result.exitCode ?? (result.success ? 0 : null);
+
+                logger.info(
+                  {
+                    trackId: trackRow.id,
+                    artist: trackRow.artist,
+                    title: trackRow.title,
+                    attempt: attempts,
+                    candidateUrl: candidate.url,
+                    exitCode,
+                    durationMs,
+                    ok: result.success,
+                  },
+                  'download-complete',
+                );
 
                 if (!result.success) {
                   error = result.error;
@@ -400,6 +459,9 @@ export async function runSync(opts: RunSyncOptions = {}): Promise<SyncResult> {
                       artist: trackRow.artist,
                       title: trackRow.title,
                       attempt: attempts,
+                      candidateUrl: candidate.url,
+                      exitCode,
+                      durationMs,
                       error,
                     },
                     'download-failed',
@@ -411,7 +473,11 @@ export async function runSync(opts: RunSyncOptions = {}): Promise<SyncResult> {
                       artist: trackRow.artist,
                       title: trackRow.title,
                       attempt: attempts,
+                      candidateUrl: candidate.url,
+                      exitCode,
+                      durationMs,
                       backend: result.backend,
+                      stdout: result.stdout || undefined,
                       stderr: result.stderr || undefined,
                     },
                     'download-success',
@@ -553,6 +619,7 @@ export async function runSync(opts: RunSyncOptions = {}): Promise<SyncResult> {
 
     const result: SyncResult = {
       runId: syncRunId,
+      logPath,
       added,
       downloaded,
       failed,

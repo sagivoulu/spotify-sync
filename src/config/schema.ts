@@ -22,6 +22,12 @@ export const configSchema = z.object({
       client_id: z.string().min(1),
       client_secret: z.string().min(1),
       playlist_url: z.string().min(1),
+      /**
+       * Override the Spotify API base URL (default: https://api.spotify.com).
+       * Used by the component test suite to point the binary at a local fake
+       * Spotify HTTP server — never set this in production.
+       */
+      base_url: z.string().optional(),
     }),
   ),
   library: pre(
@@ -50,7 +56,7 @@ export const configSchema = z.object({
       level: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
       /**
        * Maximum number of per-run log files to keep in the logs dir.
-       * Oldest files (by numeric runId) are pruned at the start of each sync.
+       * Oldest files (by mtime) are pruned at the start of each sync.
        */
       max_run_logs: z.coerce.number().int().positive().default(20),
     }),
@@ -74,6 +80,7 @@ export type ConfigInput = {
     client_id?: string;
     client_secret?: string;
     playlist_url?: string;
+    base_url?: string;
   };
   library?: {
     id?: string;
@@ -105,6 +112,7 @@ export const CONFIG_FIELD_PATHS = [
   'spotify.client_id',
   'spotify.client_secret',
   'spotify.playlist_url',
+  'spotify.base_url',
   'library.id',
   'library.path',
   'data_dir',

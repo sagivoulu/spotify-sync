@@ -3,11 +3,15 @@ import { openDatabase } from './connection.js';
 import { registerLibrary } from './index.js';
 import { runMigrations } from './migrations.js';
 import {
+  clearRemovedTrackFilePath,
   countTracksByStatus,
   getImportTarget,
   incrementAttempts,
   listDownloadedTracks,
   listPendingTracks,
+  listPrunableTracks,
+  listPruneCandidates,
+  listTrackedFilePaths,
   listTracksByStatus,
   markDownloaded,
   markFailed,
@@ -472,6 +476,147 @@ describe('getImportTarget', () => {
 });
 
 // ---------------------------------------------------------------------------
+// listPrunableTracks / clearRemovedTrackFilePath
+// ---------------------------------------------------------------------------
+
+describe('listPrunableTracks', () => {
+  it('returns only removed_from_source rows that still have file paths', () => {
+    const db = makeDb();
+    const { id: prunableId } = upsertTrack(db, { ...BASE_PARAMS, sourceId: 'prunable' });
+    const { id: cleanedId } = upsertTrack(db, { ...BASE_PARAMS, sourceId: 'cleaned' });
+    const { id: downloadedId } = upsertTrack(db, { ...BASE_PARAMS, sourceId: 'downloaded' });
+
+    db.prepare(
+      `UPDATE tracks SET status='removed_from_source', file_path='prunable.mp3' WHERE id=?`,
+    ).run(prunableId);
+    db.prepare(`UPDATE tracks SET status='removed_from_source', file_path=NULL WHERE id=?`).run(
+      cleanedId,
+    );
+    db.prepare(`UPDATE tracks SET status='downloaded', file_path='downloaded.mp3' WHERE id=?`).run(
+      downloadedId,
+    );
+
+    const rows = listPrunableTracks(db, { libraryId: 'default', source: 'spotify' });
+    db.close();
+
+    expect(rows).toEqual([
+      expect.objectContaining({
+        id: prunableId,
+        source_id: 'prunable',
+        file_path: 'prunable.mp3',
+      }),
+    ]);
+  });
+
+  it('scopes rows by library and source', () => {
+    const db = openDatabase(':memory:');
+    runMigrations(db);
+    registerLibrary(db, 'lib-a', '/music/a', '2026-01-01T00:00:00.000Z');
+    registerLibrary(db, 'lib-b', '/music/b', '2026-01-01T00:00:00.000Z');
+
+    const { id: libAId } = upsertTrack(db, {
+      ...BASE_PARAMS,
+      libraryId: 'lib-a',
+      sourceId: 'track-a',
+    });
+    const { id: libBId } = upsertTrack(db, {
+      ...BASE_PARAMS,
+      libraryId: 'lib-b',
+      sourceId: 'track-b',
+    });
+
+    db.prepare(
+      `UPDATE tracks SET status='removed_from_source', file_path='track-a.mp3' WHERE id=?`,
+    ).run(libAId);
+    db.prepare(
+      `UPDATE tracks SET status='removed_from_source', file_path='track-b.mp3' WHERE id=?`,
+    ).run(libBId);
+
+    const rows = listPrunableTracks(db, { libraryId: 'lib-a', source: 'spotify' });
+    db.close();
+
+    expect(rows.map((row) => row.source_id)).toEqual(['track-a']);
+  });
+});
+
+describe('listPruneCandidates', () => {
+  it('returns downloaded tracks absent from the refreshed source list', () => {
+    const db = makeDb();
+    const { id: removedId } = upsertTrack(db, { ...BASE_PARAMS, sourceId: 'removed' });
+    const { id: presentId } = upsertTrack(db, { ...BASE_PARAMS, sourceId: 'present' });
+    db.prepare(`UPDATE tracks SET status='downloaded', file_path='removed.mp3' WHERE id=?`).run(
+      removedId,
+    );
+    db.prepare(`UPDATE tracks SET status='downloaded', file_path='present.mp3' WHERE id=?`).run(
+      presentId,
+    );
+
+    const rows = listPruneCandidates(db, {
+      libraryId: 'default',
+      source: 'spotify',
+      presentSourceIds: ['present'],
+    });
+    db.close();
+
+    expect(rows.map((row) => row.source_id)).toEqual(['removed']);
+  });
+
+  it('does not include rows without file paths', () => {
+    const db = makeDb();
+    upsertTrack(db, { ...BASE_PARAMS, sourceId: 'pending-without-file' });
+
+    const rows = listPruneCandidates(db, {
+      libraryId: 'default',
+      source: 'spotify',
+      presentSourceIds: [],
+    });
+    db.close();
+
+    expect(rows).toEqual([]);
+  });
+});
+
+describe('clearRemovedTrackFilePath', () => {
+  it('clears file_path and preserves removed_from_source status', () => {
+    const db = makeDb();
+    const { id } = upsertTrack(db, { ...BASE_PARAMS, sourceId: 'clear-me' });
+    db.prepare(
+      `UPDATE tracks SET status='removed_from_source', file_path='clear-me.mp3' WHERE id=?`,
+    ).run(id);
+
+    clearRemovedTrackFilePath(db, id);
+
+    const row = db.prepare('SELECT status, file_path FROM tracks WHERE id=?').get(id) as {
+      status: string;
+      file_path: string | null;
+    };
+    db.close();
+
+    expect(row.status).toBe('removed_from_source');
+    expect(row.file_path).toBeNull();
+  });
+
+  it('marks a downloaded row removed when clearing its pruned file path', () => {
+    const db = makeDb();
+    const { id } = upsertTrack(db, { ...BASE_PARAMS, sourceId: 'clear-downloaded' });
+    db.prepare(
+      `UPDATE tracks SET status='downloaded', file_path='clear-downloaded.mp3' WHERE id=?`,
+    ).run(id);
+
+    clearRemovedTrackFilePath(db, id);
+
+    const row = db.prepare('SELECT status, file_path FROM tracks WHERE id=?').get(id) as {
+      status: string;
+      file_path: string | null;
+    };
+    db.close();
+
+    expect(row.status).toBe('removed_from_source');
+    expect(row.file_path).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // resetToPending
 // ---------------------------------------------------------------------------
 
@@ -645,5 +790,76 @@ describe('listTracksByStatus', () => {
     db.close();
 
     expect(rows).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// listTrackedFilePaths
+// ---------------------------------------------------------------------------
+
+describe('listTrackedFilePaths', () => {
+  it('returns every non-null file_path for the library regardless of status', () => {
+    const db = makeDb();
+    const { id: downloadedId } = upsertTrack(db, {
+      ...BASE_PARAMS,
+      sourceId: 'track-downloaded',
+    });
+    markDownloaded(db, {
+      id: downloadedId,
+      filePath: 'downloaded.mp3',
+      backend: 'yt-dlp',
+      backendSource: 'https://youtube.com/watch?v=fake',
+      now: BASE_PARAMS.now,
+    });
+
+    const { id: failedId } = upsertTrack(db, { ...BASE_PARAMS, sourceId: 'track-failed' });
+    db.prepare("UPDATE tracks SET status = 'failed', file_path = ? WHERE id = ?").run(
+      'failed-but-registered.m4a',
+      failedId,
+    );
+
+    upsertTrack(db, { ...BASE_PARAMS, sourceId: 'track-pending' });
+
+    expect(listTrackedFilePaths(db, { libraryId: 'default' })).toEqual([
+      'downloaded.mp3',
+      'failed-but-registered.m4a',
+    ]);
+    db.close();
+  });
+
+  it('scopes file paths by libraryId', () => {
+    const db = openDatabase(':memory:');
+    runMigrations(db);
+    registerLibrary(db, 'lib-a', '/music/a', '2026-01-01T00:00:00.000Z');
+    registerLibrary(db, 'lib-b', '/music/b', '2026-01-01T00:00:00.000Z');
+
+    const { id: aId } = upsertTrack(db, {
+      ...BASE_PARAMS,
+      libraryId: 'lib-a',
+      sourceId: 'track-a',
+    });
+    markDownloaded(db, {
+      id: aId,
+      filePath: 'a.mp3',
+      backend: 'yt-dlp',
+      backendSource: 'https://youtube.com/watch?v=a',
+      now: BASE_PARAMS.now,
+    });
+
+    const { id: bId } = upsertTrack(db, {
+      ...BASE_PARAMS,
+      libraryId: 'lib-b',
+      sourceId: 'track-b',
+    });
+    markDownloaded(db, {
+      id: bId,
+      filePath: 'b.mp3',
+      backend: 'yt-dlp',
+      backendSource: 'https://youtube.com/watch?v=b',
+      now: BASE_PARAMS.now,
+    });
+
+    expect(listTrackedFilePaths(db, { libraryId: 'lib-a' })).toEqual(['a.mp3']);
+    db.close();
   });
 });

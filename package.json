@@ -3,20 +3,36 @@
   "version": "0.1.0",
   "description": "CLI tool to sync a Spotify playlist to a local music library for west coast swing DJs",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sagivoulu/spotify-sync.git"
+  },
+  "homepage": "https://sagivoulu.github.io/spotify-sync/",
+  "license": "UNLICENSED",
+  "files": [
+    "dist/",
+    "bin/"
+  ],
   "engines": {
     "node": ">=24"
   },
   "bin": {
-    "spotify-sync": "./bin/spotify-sync"
+    "spotify-sync": "bin/spotify-sync"
   },
   "scripts": {
     "setup": "npm install && npm run build",
-    "build": "tsc",
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
+    "build": "npm run clean && tsc",
+    "prepublishOnly": "npm run build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:component": "npm run build && vitest run --config vitest.component.config.ts",
     "lint": "biome check src/",
     "format": "biome format --write src/",
-    "smoke:download": "tsx scripts/smoke-test-download.ts"
+    "smoke:download": "tsx scripts/smoke-test-download.ts",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
   },
   "dependencies": {
     "@spotify/web-api-ts-sdk": "^1.2.0",
@@ -25,6 +41,7 @@
     "node-id3": "^0.2.9",
     "p-limit": "^7.3.0",
     "pino": "^10.3.1",
+    "trash": "^10.1.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -33,6 +50,7 @@
     "@types/node": "^25.9.1",
     "tsx": "^4.22.3",
     "typescript": "^5.5.0",
+    "vitepress": "^1.6.4",
     "vitest": "^4.1.7"
   }
 }
