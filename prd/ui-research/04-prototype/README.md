@@ -29,7 +29,8 @@ cd prd/ui-research/04-prototype && python3 -m http.server 8765
   simulated live progress · attention list (failed / duplicates / removed) with
   Review/Prune actions · summary line.
 - **Tracks**: a unified **control bar** — free-text **search** (title/artist) + **adaptive**
-  status filter chips (Pending / Failed / Removed — grayed when empty, colored with a count
+  status filter chips (Not downloaded / Download failed / Removed from Spotify, matching the
+  list badges — grayed when empty, colored with a count
   when populated; no standing Downloaded filter) + an interactive **sort** icon button
   (menu: date added / title / artist / BPM / status) + a **filters button** (Linear-style
   funnel icon, top-right) that opens VirtualDJ-style tag/energy filtering (Phase 2 stub) ·

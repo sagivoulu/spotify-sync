@@ -59,7 +59,8 @@ Pattern borrowed from Lexicon's "scans → actionable problem lists."
 - **Tracks control bar** — search, filter, and sort grouped together (they all describe
   "how the list is shaped"; search belongs here, not in the global top bar):
   - **Free-text search** (title / artist).
-  - **Adaptive status chips** (Pending / Failed / Removed) — grayed & non-clickable when
+  - **Adaptive status chips** (Not downloaded / Download failed / Removed from Spotify —
+    labels match the list badges) — grayed & non-clickable when
     empty, colored with a count when populated. **No standing `Downloaded` filter** (browse
     "All"; a Downloaded-only view returns in Phase 2 for tagging).
   - **Sort** — an icon button (same visual style as the filters button) opening a menu of
