@@ -136,7 +136,8 @@
   .aitem .atxt{flex:1;color:var(--text)}
   .aitem .awhen{color:var(--faint);font-size:12px}
   @media(max-width:820px){.homegrid{grid-template-columns:1fr}}
-  .soon{display:inline-block;background:var(--surface2);border:1px solid var(--line);color:var(--faint);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 7px;border-radius:999px;margin-left:8px;vertical-align:middle}
+  /* unified "coming soon" tag — same blue style everywhere (matches .coming-badge) */
+  .soon{display:inline-block;background:rgba(85,153,255,.12);border:1px solid rgba(85,153,255,.35);color:#9bc2ff;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:2px 8px;border-radius:999px;margin-left:8px;vertical-align:middle}
   .ph{color:var(--faint);font-size:12.5px;margin-bottom:10px}
   .phrow{display:flex;justify-content:space-between;padding:7px 0;border-top:1px solid var(--line);color:var(--faint);font-size:13px}
   .phchips{display:flex;flex-wrap:wrap;gap:6px}
@@ -146,6 +147,10 @@
   .upd b{color:var(--text)}
   .preview-banner{background:rgba(85,153,255,.1);border:1px solid rgba(85,153,255,.35);color:#9bc2ff;border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13px}
   .preview-banner b{color:#cfe0ff}
+  .buildcta{display:flex;align-items:center;gap:14px;background:var(--surface);border:1px dashed var(--line);border-radius:12px;padding:16px 18px;margin-bottom:16px;opacity:.8;cursor:default}
+  .buildcta .buildtxt{flex:1}
+  .buildtitle{font-size:15px;font-weight:700;color:var(--text)}
+  .buildsub{color:var(--muted);font-size:12.5px;margin-top:3px}
   .setlist{display:flex;flex-direction:column;gap:12px}
   .setcard{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
   .sethead{display:flex;align-items:flex-start;gap:14px}
@@ -271,6 +276,16 @@
         </button>
         <div class="nupop" id="notifPop"></div>
       </div>
+      <div class="nuwrap">
+        <button class="bell" id="settingsBtn" aria-label="Settings" title="Settings">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+        <div class="nupop" id="settingsPop">
+          <div class="menulabel">Settings</div>
+          <div class="coming-badge" style="margin:2px 0 8px">Coming soon</div>
+          <div class="ph" style="margin:0">Spotify account, library folder, audio format &amp; quality, and backups will live here.</div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -379,6 +394,13 @@
     <!-- SETS (future mockup) -->
     <div class="view" id="sets">
       <div class="preview-banner">🎛️ <b>Sets</b> — a record of what you played. Save sets from VirtualDJ, review them, and publish to Spotify or export to other formats. <b>Coming in Phase 3</b> — this page is a preview.</div>
+      <div class="buildcta" title="Guided set builder — coming soon">
+        <div class="buildtxt">
+          <div class="buildtitle">✨ Build my next set</div>
+          <div class="buildsub">A guided builder to craft your next set — balance BPM, energy, and style for the crowd, then send it to VirtualDJ.</div>
+        </div>
+        <span class="soon">Soon</span>
+      </div>
       <div class="setlist">
         <div class="setcard">
           <div class="sethead">
@@ -687,8 +709,9 @@ document.querySelectorAll("#sortMenu .menuitem").forEach(mi=>mi.onclick=e=>{
   else { sortKey=mi.dataset.s; sortDir="asc"; }
   applySort();   // keep menu open so the direction arrow is visible / re-clickable
 });
-$("#notifBtn").onclick=e=>{ e.stopPropagation(); $("#notifBtn").classList.remove("has"); $("#notifPop").classList.toggle("on"); };
-document.addEventListener("click",()=>{ $("#sortMenu").classList.remove("on"); $("#sortBtn").classList.remove("on"); $("#notifPop").classList.remove("on"); });
+$("#notifBtn").onclick=e=>{ e.stopPropagation(); $("#settingsPop").classList.remove("on"); $("#notifBtn").classList.remove("has"); $("#notifPop").classList.toggle("on"); };
+$("#settingsBtn").onclick=e=>{ e.stopPropagation(); $("#notifPop").classList.remove("on"); $("#settingsPop").classList.toggle("on"); };
+document.addEventListener("click",()=>{ $("#sortMenu").classList.remove("on"); $("#sortBtn").classList.remove("on"); $("#notifPop").classList.remove("on"); $("#settingsPop").classList.remove("on"); });
 $("#netPill").onclick=()=>{ online=!online; renderNet(); };
 renderHealth(); renderHome(); renderFilters(); renderExplainer(); applySort(); renderActivity(); renderNotifs(); renderNet();
 </script>

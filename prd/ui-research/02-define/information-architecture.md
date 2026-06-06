@@ -123,7 +123,9 @@ communicate the roadmap when showing the prototype for feedback.
 A visible tab with a **mockup** of the future sets feature (tab tagged "Soon"): a record of
 past sets (venue · date · duration · track count), each with **Publish to Spotify** / **Export**
 actions, and an "open in Spotify" state for already-published sets. Not built in Phase 1 —
-shown so the direction is concrete and testable.
+shown so the direction is concrete and testable. Also a disabled **"✨ Build my next set"**
+hint CTA at the top — a placeholder for a future guided set-builder (balance BPM / energy /
+style for the crowd, then send to VirtualDJ).
 
 > **The old Statistics tab was removed.** Its counts already live in the Home readiness/health
 > badge and the Tracks list — a separate tab was redundant. Meaningful stats (popular tags,
@@ -148,6 +150,10 @@ shown so the direction is concrete and testable.
   updates and notifications in general. Shows a dot when something is unread; opening it clears
   the dot. Update notes are **grouped by version** with a relative time (e.g. "v0.3 · 2h ago").
   (A standard bell, deliberately *not* a sparkle/AI-style icon.)
+- **Settings** (top-right corner, gear icon): **coming soon** — Spotify account, library folder,
+  audio format & quality, and backups will live here. No design yet; surfaced as a placeholder.
+- **"Coming soon" tags** use one consistent style (a blue pill) everywhere they appear
+  (tabs, Home cards, CTAs, coming-soon pages).
 - **Search is NOT global** — it lives in the Tracks page (see below), since searching is a
   Tracks operation.
 - Visual direction (Prototype phase): **Spotify-like** — dark, clean, art-forward.

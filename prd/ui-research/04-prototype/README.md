@@ -36,6 +36,9 @@ cd prd/ui-research/04-prototype && python3 -m http.server 8765
   Home + Tracks).
 - **Tagging** (coming-soon): a tab with a coming-soon card explaining openbeat will help tag
   music (energy + characteristics) faster, with fewer missed tags.
+- **Sets** also has a disabled **"✨ Build my next set"** hint CTA (future guided set-builder).
+- **Settings** (top-right gear): coming-soon popover (no design yet).
+- All **"Coming soon" tags** share one blue style across tabs, cards, and CTAs.
 - **Sets** (preview): a mockup of the future sets feature — past sets (venue · date · duration ·
   tracks) with Publish-to-Spotify / Export actions; marked "Soon".
 - **Online/offline:** offline shows a calm banner and disables internet-only actions (Run sync,
