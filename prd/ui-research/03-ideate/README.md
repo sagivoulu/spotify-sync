@@ -1,6 +1,6 @@
 # Phase 3 — Ideate
 
-> Status: ⬜ Not started
+> Status: ✅ Complete
 > Goal: generate *many* rough solution directions before committing to one. Diverge.
 > Keep fidelity deliberately low so throwing ideas away is cheap.
 
@@ -20,4 +20,8 @@
 
 ## Findings
 
-_(none yet)_
+- **`sketches.md`** — low-fi ASCII variants for the two Phase 1 screens and the converged
+  direction: **Dashboard** = readiness verdict + attention list (blend of variants C+B);
+  **Tracks** = Spotify-style art-forward list + side panel (variant B). Includes secondary
+  states (healthy / syncing) and the click-through from Dashboard attention → filtered
+  Tracks → side-panel resolve actions. Carry-over notes for Prototype.
