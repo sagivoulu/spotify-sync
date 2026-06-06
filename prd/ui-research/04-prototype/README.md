@@ -21,17 +21,34 @@ cd prd/ui-research/04-prototype && python3 -m http.server 8765
 
 ### What's implemented (matches the Ideate direction)
 
+- **Brand:** the app is **openbeat** (renamed from spotify-sync; repo/CLI still spotify-sync).
+- **Top bar:** labeled **source-playlist indicator** (`PLAYLIST: WCS Sagbot ↗`, opens in
+  Spotify) + an always-visible **health badge** (downloaded count · last sync · amber
+  "⚠ N to review" when attention is needed; click → Dashboard).
 - **Dashboard** (landing): readiness verdict (ready/attention states) · Run sync with
   simulated live progress · attention list (failed / duplicates / removed) with
   Review/Prune actions · summary line.
-- **Tracks**: status filter chips · Spotify-style art-forward rows (art, title, status,
-  artist · tags · BPM, duration) · click a row → **side panel** with detail and
-  **context-aware actions** (failed → Retry/Import; downloaded → Preview/Replace;
-  removed → Prune/Re-add).
+- **Tracks**: **adaptive** status filter chips (Pending / Failed / Removed — grayed when
+  empty, colored with a count when populated; no standing Downloaded filter) · Spotify-style
+  art-forward rows · **play appears on hover over the album art** (no misleading ▶ arrow) ·
+  click a row → **side panel** with detail and **context-aware actions** (failed →
+  Retry/Import; downloaded → Preview/Replace; removed → Prune/Re-add).
 - **Wired click-through**: Dashboard attention row → Tracks pre-filtered → side panel.
-- **History** & **Statistics**: light stubs.
-- Visual language: Spotify-like dark theme (per Sagiv's stated preference). Album art shown
-  (placeholder color blocks in the prototype; real cover art exists in the pipeline).
+- **Activity** (action log): technical log of syncs / removals / manual imports, clearly
+  labeled (not a hero view). **Statistics**: light stub.
+- Visual language: Spotify-like dark theme. Album art shown (placeholder color blocks in the
+  prototype; real cover art exists in the pipeline).
+
+## Review changes — round 1 (Sagiv)
+
+- Renamed app to **openbeat**.
+- Tracks: dropped the `Downloaded` filter; made status chips adaptive (gray when empty).
+- Renamed **History → Activity** (action log) — "History" reserved for a future
+  play/set-history concept (Phase 3).
+- Enriched the top-right status into a real **health badge** (count + warning), and labeled
+  the **playlist** pill so its purpose is clear.
+- Fixed the misleading ▶ row arrow → play now appears on hover over the album art; row click
+  still opens the side panel (kept, per Sagiv).
 
 ### Verified
 

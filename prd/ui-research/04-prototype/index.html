@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  spotify-sync — Phase 1 UI prototype (THROWAWAY)
+  openbeat — Phase 1 UI prototype (THROWAWAY)  [app formerly spotify-sync]
   ------------------------------------------------
   A static, clickable mockup for usability testing (Phase 5). Fake data only;
   NOT wired to the real core. Vanilla HTML/CSS/JS, no dependencies, works offline.
@@ -14,7 +14,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>spotify-sync — prototype</title>
+<title>openbeat — prototype</title>
 <style>
   :root{
     --bg:#121212; --surface:#181818; --surface2:#1f1f1f; --hover:#2a2a2a;
@@ -44,7 +44,14 @@
   }
   .topbar .right{margin-left:auto;display:flex;align-items:center;gap:14px;color:var(--muted);font-size:12px}
   .pill{background:var(--surface2);border:1px solid var(--line);border-radius:999px;padding:6px 12px;color:var(--text);font-size:12px;cursor:pointer}
-  .synced::before{content:"●";color:var(--green);margin-right:6px}
+  .pill-cap{font-size:9px;letter-spacing:1px;color:var(--faint);margin-right:7px}
+  .health{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);cursor:pointer;background:var(--surface2);border:1px solid var(--line);border-radius:999px;padding:6px 12px}
+  .health:hover{background:var(--hover)}
+  .hdot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
+  .hdot.ok{background:var(--green)}
+  .hdot.warn{background:var(--amber)}
+  .health b{color:var(--text)}
+  .hwarn{color:var(--amber);font-weight:700}
 
   /* tabs */
   .tabs{display:flex;gap:4px;padding:8px 16px;background:#0d0d0d;border-bottom:1px solid var(--line);flex:0 0 auto}
@@ -96,6 +103,10 @@
   /* tracks */
   .filters{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap}
   .chip{padding:7px 14px;border-radius:999px;background:var(--surface2);border:1px solid var(--line);color:var(--muted);cursor:pointer;font-size:12px;font-weight:600}
+  .chip.zero{opacity:.4;cursor:default;color:var(--faint)}
+  .chip.c-pending{color:#cdd6ea;border-color:#3a4256}
+  .chip.c-failed{color:var(--red);border-color:rgba(226,69,74,.5);background:rgba(226,69,74,.12)}
+  .chip.c-removed{color:var(--amber);border-color:rgba(240,162,2,.5);background:rgba(240,162,2,.12)}
   .chip.active{background:#fff;color:#000;border-color:#fff}
   .sort{margin-left:auto;color:var(--muted);font-size:12px}
   .tracks-wrap{display:flex;gap:18px;align-items:flex-start}
@@ -103,9 +114,9 @@
   .trow{display:flex;align-items:center;gap:12px;padding:8px 10px;border-radius:6px;cursor:pointer}
   .trow:hover{background:var(--hover)}
   .trow.sel{background:var(--surface2)}
-  .art{width:44px;height:44px;border-radius:5px;flex:0 0 auto;display:grid;place-items:center;font-weight:700;color:#fff;font-size:15px;text-shadow:0 1px 2px rgba(0,0,0,.4)}
-  .play{width:26px;color:var(--muted);text-align:center;flex:0 0 auto}
-  .trow:hover .play{color:var(--text)}
+  .art{position:relative;overflow:hidden;width:44px;height:44px;border-radius:5px;flex:0 0 auto;display:grid;place-items:center;font-weight:700;color:#fff;font-size:15px;text-shadow:0 1px 2px rgba(0,0,0,.4)}
+  .art .pov{position:absolute;inset:0;display:none;place-items:center;background:rgba(0,0,0,.5);font-size:15px;text-shadow:none;cursor:pointer}
+  .trow:hover .art .pov{display:grid}
   .meta{flex:1 1 auto;min-width:0}
   .meta .t{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .meta .s{color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -135,6 +146,11 @@
   .hrow .when{width:120px;color:var(--muted);font-size:13px}
   .hrow .nums{color:var(--text)}
   .hrow .nums b{color:var(--green)}
+  .atype{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:3px 8px;border-radius:6px;width:64px;text-align:center;flex:0 0 auto}
+  .atype.sync{background:rgba(29,185,84,.15);color:var(--green)}
+  .atype.remove{background:rgba(240,162,2,.15);color:var(--amber)}
+  .atype.import{background:rgba(85,153,255,.15);color:var(--blue)}
+  .sublabel{color:var(--faint);font-size:12px;margin:-6px 0 14px}
   .statgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px}
   .stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px}
   .stat .n{font-size:30px;font-weight:800}
@@ -145,18 +161,20 @@
 <body>
 <div class="app">
   <div class="topbar">
-    <div class="brand">spotify<span class="dot">·</span>sync</div>
+    <div class="brand">open<span class="dot">·</span>beat</div>
     <div class="search">🔍&nbsp; Search your library…</div>
     <div class="right">
-      <span class="pill">WCS Sagbot ▾</span>
-      <span class="synced" id="syncedAt">synced 2h ago</span>
+      <span class="pill" id="playlistPill" title="The Spotify playlist this library syncs from — opens in Spotify">
+        <span class="pill-cap">PLAYLIST</span>WCS Sagbot ↗
+      </span>
+      <div class="health" id="healthBadge" title="Library health — click for details"></div>
     </div>
   </div>
 
   <div class="tabs" id="tabs">
     <div class="tab active" data-view="dashboard">Dashboard</div>
     <div class="tab" data-view="tracks">Tracks</div>
-    <div class="tab" data-view="history">History</div>
+    <div class="tab" data-view="activity">Activity</div>
     <div class="tab" data-view="stats">Statistics</div>
   </div>
 
@@ -189,24 +207,18 @@
 
     <!-- TRACKS -->
     <div class="view" id="tracks">
-      <div class="filters" id="filters">
-        <div class="chip active" data-f="all">All</div>
-        <div class="chip" data-f="downloaded">Downloaded</div>
-        <div class="chip" data-f="pending">Pending</div>
-        <div class="chip" data-f="failed">Failed</div>
-        <div class="chip" data-f="removed">Removed</div>
-        <div class="sort">sort: Date added ▾</div>
-      </div>
+      <div class="filters" id="filters"></div>
       <div class="tracks-wrap">
         <div class="tracklist" id="tracklist"></div>
         <div class="panel empty" id="panel">Select a track to see details</div>
       </div>
     </div>
 
-    <!-- HISTORY -->
-    <div class="view" id="history">
-      <h2 class="section">Sync runs</h2>
-      <div id="historyList"></div>
+    <!-- ACTIVITY / ACTION LOG -->
+    <div class="view" id="activity">
+      <h2 class="section">Action log</h2>
+      <p class="sublabel">Technical activity — syncs, removed tracks, manual imports detected.</p>
+      <div id="activityList"></div>
     </div>
 
     <!-- STATS -->
@@ -260,6 +272,16 @@ function showView(v){
 }
 document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>showView(t.dataset.view));
 
+// ---- top-bar health badge --------------------------------------------------
+let syncedLabel="synced 2h ago";
+function renderHealth(){
+  const attn=COUNTS.failed+COUNTS.dupes+COUNTS.removed, ok=attn===0;
+  $("#healthBadge").innerHTML=
+    `<span class="hdot ${ok?'ok':'warn'}"></span>`+
+    `<span><b>${COUNTS.downloadedTotal}</b> downloaded · ${syncedLabel}</span>`+
+    (ok?``:`<span class="hwarn">⚠ ${attn} to review</span>`);
+}
+
 // ---- dashboard -------------------------------------------------------------
 function renderDashboard(){
   const attnCount=COUNTS.failed+COUNTS.dupes+COUNTS.removed;
@@ -301,27 +323,38 @@ $("#runSync").onclick=()=>{
     bar.style.width=f+"%"; pct.textContent=f+"%";
     log.textContent=steps.slice(0,i+1).join("\n");
     if(i++<steps.length-1) setTimeout(tick,500);
-    else { $("#syncedAt").textContent="synced just now"; $("#lastRun").textContent="last run: +10 new · 2 failed"; $("#runSync").disabled=false; }
+    else { syncedLabel="synced just now"; renderHealth(); $("#lastRun").textContent="last run: +10 new · 2 failed"; $("#runSync").disabled=false; }
   };
   tick();
 };
 
 // ---- tracks ----------------------------------------------------------------
 let filter="all";
-function setFilter(f){
-  filter=f;
-  document.querySelectorAll(".chip").forEach(c=>c.classList.toggle("active",c.dataset.f===f));
-  renderTracks();
+const STC={pending:"c-pending",failed:"c-failed",removed:"c-removed"};
+function renderFilters(){
+  const counts={pending:COUNTS.pending,failed:COUNTS.failed,removed:COUNTS.removed};
+  let html='<div class="chip" data-f="all">All</div>';
+  ["pending","failed","removed"].forEach(s=>{
+    const n=counts[s], cap=s[0].toUpperCase()+s.slice(1);
+    html += n>0
+      ? `<div class="chip ${STC[s]}" data-f="${s}">${cap} ${n}</div>`
+      : `<div class="chip zero" data-f="${s}" title="No ${s} songs right now">${cap}</div>`;
+  });
+  html+='<div class="sort">sort: Date added ▾</div>';
+  const box=$("#filters"); box.innerHTML=html;
+  box.querySelectorAll(".chip").forEach(c=>{
+    c.classList.toggle("active",c.dataset.f===filter);
+    if(!c.classList.contains("zero")) c.onclick=()=>setFilter(c.dataset.f);
+  });
 }
-document.querySelectorAll(".chip").forEach(c=>c.onclick=()=>setFilter(c.dataset.f));
+function setFilter(f){ filter=f; renderFilters(); renderTracks(); }
 
 function renderTracks(){
   const list=$("#tracklist");
   const rows=TRACKS.map((t,idx)=>({t,idx})).filter(o=>filter==="all"||o.t.st===filter);
   list.innerHTML=rows.map(({t,idx})=>`
     <div class="trow" data-idx="${idx}">
-      <div class="play">▶</div>
-      <div class="art" style="background:${art(idx)}">${t.t[0]}</div>
+      <div class="art" style="background:${art(idx)}">${t.t[0]}<span class="pov">▶</span></div>
       <div class="meta">
         <div class="t">${t.t}</div>
         <div class="s">${t.a} · ${t.tags}${t.bpm?" · "+t.bpm+" bpm":""}</div>
@@ -330,6 +363,7 @@ function renderTracks(){
       <div class="dur">${t.dur}</div>
     </div>`).join("") || '<div class="allgood">No tracks in this view.</div>';
   list.querySelectorAll(".trow").forEach(r=>r.onclick=()=>selectTrack(+r.dataset.idx));
+  list.querySelectorAll(".pov").forEach(p=>p.onclick=e=>{e.stopPropagation(); p.textContent=p.textContent==="▶"?"⏸":"▶";});
 }
 
 function selectTrack(idx){
@@ -355,14 +389,16 @@ function selectTrack(idx){
     <div class="pactions">${actions}</div>`;
 }
 
-// ---- history / stats -------------------------------------------------------
-function renderHistory(){
-  const runs=[
-    {when:"2h ago",nums:"+10 new · <b>8</b> downloaded · 2 failed · 1 removed"},
-    {when:"6 days ago",nums:"+3 new · <b>3</b> downloaded"},
-    {when:"3 weeks ago",nums:"+47 new · <b>42</b> downloaded · 5 failed"},
+// ---- activity (action log) / stats -----------------------------------------
+function renderActivity(){
+  const A=[
+    {when:"2h ago",type:"sync",text:"Sync run — +10 new · <b>8</b> downloaded · 2 failed · 1 removed"},
+    {when:"2h ago",type:"remove",text:'Removed from source — “Bésame Mucho” (file kept on disk)'},
+    {when:"1d ago",type:"import",text:'Manual import detected — “Adele - Make You Feel My Love.mp3” bound to a pending track'},
+    {when:"6 days ago",type:"sync",text:"Sync run — +3 new · <b>3</b> downloaded"},
+    {when:"3 weeks ago",type:"sync",text:"Sync run — +47 new · <b>42</b> downloaded · 5 failed"},
   ];
-  $("#historyList").innerHTML=runs.map(r=>`<div class="hrow"><div class="when">${r.when}</div><div class="nums">${r.nums}</div></div>`).join("");
+  $("#activityList").innerHTML=A.map(a=>`<div class="hrow"><div class="when">${a.when}</div><span class="atype ${a.type}">${a.type}</span><div class="nums">${a.text}</div></div>`).join("");
 }
 function renderStats(){
   const s=[["842","Total"],["814","Downloaded"],["12","Pending"],["3","Failed"],["5","Duplicates"],["8","Removed"]];
@@ -370,7 +406,8 @@ function renderStats(){
 }
 
 // init
-renderDashboard(); renderTracks(); renderHistory(); renderStats();
+$("#healthBadge").onclick=()=>showView("dashboard");
+renderHealth(); renderDashboard(); renderFilters(); renderTracks(); renderActivity(); renderStats();
 </script>
 </body>
 </html>

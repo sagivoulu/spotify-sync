@@ -21,11 +21,11 @@ If the UI needs data the `--json` doesn't expose, that's a finding to feed back 
 ## Top-level structure
 
 ```
-┌─ Top bar:  [Library ▾(future)]   🔍 Global search        ● Last sync: 2h ago ─┐
+┌─ open·beat  🔍 Search  [PLAYLIST: WCS Sagbot ↗]  ● 814 downloaded · 2h · ⚠ N review ─┐
 │  TABS (tab-per-category):                                                      │
 │   ● Dashboard   health at a glance + Run sync   (PHASE 1 — landing view)       │
 │   ● Tracks      all songs, art, preview, filters(PHASE 1 — anchor view)        │
-│   ● History     past sync runs + logs           (PHASE 1 — light)              │
+│   ● Activity    action log (syncs, removals…)   (PHASE 1 — light)              │
 │   ● Statistics  counts / overview               (PHASE 1 — light)              │
 │   ○ Tagging     tag assist                       (Phase 2)                     │
 │   ○ Coverage    event-readiness smartlists       (Phase 2)                     │
@@ -54,20 +54,30 @@ Pattern borrowed from Lexicon's "scans → actionable problem lists."
 - **Inline play/preview** per row.
 - Row click → **side panel** (Lexicon pattern Sagiv liked): match info, file path, and
   resolve actions (retry, manual import).
-- Filters: status, tag, free-text search.
+- Filters: **All** + **adaptive status chips** (Pending / Failed / Removed) — grayed &
+  non-clickable when empty, colored with a count when they have songs (so the bar only
+  draws attention to states that actually exist). **No standing `Downloaded` filter** —
+  browse "All" instead; a Downloaded-only view returns in Phase 2 for tagging. Plus tag +
+  free-text search.
 
-### History — light
-- List of past `sync_runs` (date, +new, downloaded, failed, removed).
+### Activity (action log) — light
+- A clearly-labeled **technical** log: sync runs, tracks removed from source, manual imports
+  detected, etc. Not a hero view.
 - Drill into a run's per-run log file.
+- **Note:** a true *play/set History* (the sets the DJ actually played) is a different,
+  **Phase 3** concept — don't conflate. The "History" name is reserved for that.
 
 ### Statistics — light
 - Library counts by status; room to grow into coverage stats in Phase 2.
 
 ## Cross-cutting elements
 
+- **Brand:** the app is **openbeat** (top-left). (Repo/CLI still `spotify-sync` for now.)
+- **Source playlist indicator** in the top bar — labeled (`PLAYLIST: WCS Sagbot`), opens the
+  playlist in Spotify. A switcher is a multi-playlist / multi-library future concern.
+- **Library health badge** (top-right), always visible from any tab: downloaded count +
+  last-sync time + an amber "⚠ N to review" when anything needs attention; click → Dashboard.
 - **Global search** in the top bar (Lexicon table-stake).
-- **Sync status indicator** always visible (last sync time / in-progress).
-- **Library switcher** stubbed in the top bar for the multi-library future (single library in v1).
 - Visual direction (Prototype phase): **Spotify-like** — dark, clean, art-forward.
 
 ## Resolve actions — where they live
