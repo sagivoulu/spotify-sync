@@ -63,8 +63,10 @@ Pattern borrowed from Lexicon's "scans → actionable problem lists."
     empty, colored with a count when populated. **No standing `Downloaded` filter** (browse
     "All"; a Downloaded-only view returns in Phase 2 for tagging).
   - **Sort**.
-  - *Future (Phase 2):* VirtualDJ-style filtering — combine **tags** (e.g. sexy, dark) +
-    **energy** (e.g. low) with free-text search, all here in the Tracks page.
+  - **Filters button** — a Linear-style **funnel icon** (three decreasing lines) at the
+    top-right of the bar; opens the filter panel. *Future (Phase 2):* VirtualDJ-style
+    filtering — combine **tags** (e.g. sexy, dark) + **energy** (e.g. low) with free-text
+    search, all here in the Tracks page.
 
 ### Activity (action log) — light
 - A clearly-labeled **technical** log: sync runs, tracks removed from source, manual imports

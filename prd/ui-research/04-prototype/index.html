@@ -114,8 +114,9 @@
   .tsearch::placeholder{color:var(--faint)}
   .tsearch:focus{border-color:#3a4256}
   .filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-  .tagfilter{background:transparent;border:1px dashed var(--line);color:var(--muted);border-radius:999px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer}
-  .tagfilter:hover{color:var(--text);border-color:#444}
+  .filterbtn{display:grid;place-items:center;width:34px;height:32px;border-radius:8px;background:var(--surface2);border:1px solid var(--line);color:var(--muted);cursor:pointer}
+  .filterbtn:hover{color:var(--text);background:var(--hover)}
+  .filterbtn.on{color:var(--text);background:var(--hover);border-color:#3a4256}
   .futurenote{display:none;color:var(--faint);font-size:12px;background:var(--surface);border:1px dashed var(--line);border-radius:8px;padding:10px 12px;margin:-6px 0 14px;flex:0 0 auto}
   .futurenote.on{display:block}
   .chip{padding:7px 14px;border-radius:999px;background:var(--surface2);border:1px solid var(--line);color:var(--muted);cursor:pointer;font-size:12px;font-weight:600}
@@ -225,8 +226,10 @@
       <div class="controls">
         <input id="search" class="tsearch" type="text" placeholder="Search title or artist…" autocomplete="off">
         <div class="filters" id="filters"></div>
-        <button class="tagfilter" id="tagFilter" title="Filter by tags & energy (like VirtualDJ) — planned for Phase 2">＋ Tags / energy</button>
         <div class="sort" id="sort">sort: Date added ▾</div>
+        <button class="filterbtn" id="filterBtn" aria-label="Filters" title="Filter by tags & energy (like VirtualDJ) — planned for Phase 2">
+          <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><line x1="2.5" y1="4.5" x2="13.5" y2="4.5"/><line x1="4.5" y1="8" x2="11.5" y2="8"/><line x1="6.5" y1="11.5" x2="9.5" y2="11.5"/></svg>
+        </button>
       </div>
       <div class="futurenote" id="futureNote">Planned (Phase 2): VirtualDJ-style filtering — combine <b>tags</b> (e.g. sexy, dark) + <b>energy</b> (e.g. low) with free-text search, all here in the Tracks page.</div>
       <div class="tracks-wrap">
@@ -430,7 +433,7 @@ function renderStats(){
 // init
 $("#healthBadge").onclick=()=>showView("dashboard");
 $("#search").oninput=e=>{ query=e.target.value.trim().toLowerCase(); renderTracks(); };
-$("#tagFilter").onclick=()=>$("#futureNote").classList.toggle("on");
+$("#filterBtn").onclick=()=>{ $("#filterBtn").classList.toggle("on"); $("#futureNote").classList.toggle("on"); };
 renderHealth(); renderDashboard(); renderFilters(); renderTracks(); renderActivity(); renderStats();
 </script>
 </body>
