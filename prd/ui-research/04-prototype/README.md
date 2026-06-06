@@ -36,8 +36,10 @@ cd prd/ui-research/04-prototype && python3 -m http.server 8765
   funnel icon, top-right) that opens VirtualDJ-style tag/energy filtering (Phase 2 stub) ·
   Spotify-style
   art-forward rows · **play appears on hover over the album art** (no misleading ▶ arrow) ·
-  click a row → **side panel** with detail and **context-aware actions** (failed →
-  Retry/Import; downloaded → Preview/Replace; removed → Prune/Re-add).
+  click a row → **side panel** with detail and a **fix CTA matched to the status**
+  (Not downloaded → Download · Download failed → Retry · Removed → Prune; downloaded →
+  Preview/Replace). The category explainer also offers a **bulk fix** (Download all / Retry
+  all / Prune all).
 - **Wired click-through**: Dashboard attention row → Tracks pre-filtered → side panel.
 - **Activity** (action log): technical log of syncs / removals / manual imports, clearly
   labeled (not a hero view). **Statistics**: light stub.

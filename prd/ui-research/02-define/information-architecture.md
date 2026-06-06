@@ -52,8 +52,9 @@ Pattern borrowed from Lexicon's "scans → actionable problem lists."
 - Rows: **album art**, title/artist, status badge, energy + characteristics, BPM, duration.
   (Field set per impressions: art in, **Key out**.)
 - **Inline play/preview** per row.
-- Row click → **side panel** (Lexicon pattern Sagiv liked): match info, file path, and
-  resolve actions (retry, manual import).
+- Row click → **side panel** (Lexicon pattern Sagiv liked): match info, file path, and a
+  **primary fix CTA matched to the status** (Not downloaded → Download · Download failed →
+  Retry · Removed from Spotify → Prune), plus a secondary action (Import file / Keep file).
 - **Scroll containment:** the filter/sort bar (top) and the side panel (right) stay pinned;
   only the track list scrolls.
 - **Tracks control bar** — search, filter, and sort grouped together (they all describe
@@ -87,9 +88,10 @@ one-line explanation in the side panel:
 
 (The "Spotify" wording is source-specific for v1; a multi-source future generalizes to "source".)
 
-When a status filter is active, a short **explainer line** appears between the filter chips
-and the song list describing that category (shown for Not downloaded / Failed / Removed;
-none for All).
+When a status filter is active, a short **explainer banner** appears between the filter chips
+and the song list: it describes that category **and offers a bulk fix CTA** for all songs in
+it (Download all / Retry all / Prune all). Shown for Not downloaded / Download failed /
+Removed; none for All.
 
 ### Activity (action log) — light
 - A clearly-labeled **technical** log: sync runs, tracks removed from source, manual imports
@@ -118,7 +120,9 @@ The Phase-1 resolve flows are reachable from **two entry points** (same underlyi
 1. Dashboard health card → filtered list → resolve.
 2. Tracks tab → row → side panel → resolve.
 
-Actions: **retry a failed download**, **manual import with dedup**.
+Actions (each available **per-song** in the side panel and **in bulk** from the category
+explainer): **Download** (Not downloaded), **Retry download** (Download failed), **Prune**
+(Removed from Spotify), plus **manual import with dedup**. Every problem state surfaces a fix.
 (Quality/match verification deferred to Phase 2 — not a Phase 1 resolve action.)
 
 ## Next in Define

@@ -124,9 +124,14 @@
   .menuitem{padding:8px 10px;border-radius:6px;font-size:13px;color:var(--text);cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px}
   .menuitem:hover{background:var(--hover)}
   .menuitem .dir{color:var(--green);min-width:14px;text-align:right;font-weight:700}
-  .explainer{display:none;color:var(--muted);font-size:12.5px;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--line);border-radius:8px;padding:10px 14px;margin:-2px 0 14px;flex:0 0 auto}
-  .explainer.on{display:block}
+  .explainer{display:none;align-items:center;gap:14px;color:var(--muted);font-size:12.5px;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--line);border-radius:8px;padding:10px 14px;margin:-2px 0 14px;flex:0 0 auto}
+  .explainer.on{display:flex}
   .explainer b{color:var(--text)}
+  .explainer .ex-text{flex:1}
+  .ex-cta{flex:0 0 auto;background:var(--green);color:#000;border:none;border-radius:999px;padding:8px 16px;font-weight:700;font-size:12px;cursor:pointer}
+  .ex-cta:hover{filter:brightness(1.08)}
+  .ex-cta.danger{background:var(--red);color:#fff}
+  .ex-cta:disabled{opacity:.6;cursor:default}
   .futurenote{display:none;color:var(--faint);font-size:12px;background:var(--surface);border:1px dashed var(--line);border-radius:8px;padding:10px 12px;margin:-6px 0 14px;flex:0 0 auto}
   .futurenote.on{display:block}
   .chip{padding:7px 14px;border-radius:999px;background:var(--surface2);border:1px solid var(--line);color:var(--muted);cursor:pointer;font-size:12px;font-weight:600}
@@ -167,6 +172,7 @@
   .panel .pactions{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
   .panel .pactions button{flex:1;min-width:90px;background:var(--surface2);border:1px solid var(--line);color:var(--text);border-radius:999px;padding:9px;cursor:pointer;font-weight:600}
   .panel .pactions button.primary{background:var(--green);color:#000;border:none}
+  .panel .pactions button.danger{background:var(--red);color:#fff;border:none}
   .panel .pactions button:hover{filter:brightness(1.1)}
 
   /* history / stats */
@@ -410,12 +416,16 @@ function renderFilters(){
   });
 }
 function setFilter(f){ filter=f; renderFilters(); renderExplainer(); renderTracks(); }
+const BULK={pending:"Download all",failed:"Retry all",removed:"Prune all"};
 function renderExplainer(){
   const ex=$("#statusExplainer");
   if(filter==="all"){ ex.className="explainer"; ex.innerHTML=""; ex.style.borderLeftColor=""; return; }
+  const n=COUNTS[filter]||0;
   ex.className="explainer on";
   ex.style.borderLeftColor=stColor[filter]||"var(--line)";
-  ex.innerHTML=`<b>${FLABEL[filter]}:</b> ${stHelp[filter]}`;
+  ex.innerHTML=`<div class="ex-text"><b>${FLABEL[filter]}:</b> ${stHelp[filter]}</div>`+
+    `<button class="ex-cta${filter==="removed"?" danger":""}" id="bulkCta">${BULK[filter]} (${n})</button>`;
+  $("#bulkCta").onclick=()=>{ const b=$("#bulkCta"), o=b.textContent; b.textContent="Started…"; b.disabled=true; setTimeout(()=>{b.textContent=o;b.disabled=false;},1200); };
 }
 
 function renderTracks(){
@@ -441,10 +451,12 @@ function renderTracks(){
 function selectTrack(idx){
   const t=TRACKS[idx];
   document.querySelectorAll(".trow").forEach(r=>r.classList.toggle("sel",+r.dataset.idx===idx));
-  const actions = t.st==="failed"
-    ? `<button class="primary">↻ Retry</button><button>⤓ Import file</button>`
+  const actions = t.st==="pending"
+    ? `<button class="primary">⤓ Download now</button><button>⤓ Import file</button>`
+    : t.st==="failed"
+    ? `<button class="primary">↻ Retry download</button><button>⤓ Import file</button>`
     : t.st==="removed"
-    ? `<button>🗑 Prune</button><button>↻ Re-add</button>`
+    ? `<button class="primary danger">🗑 Prune (delete file)</button><button>Keep file</button>`
     : `<button class="primary">▶ Preview</button><button>⤓ Replace</button>`;
   $("#panel").className="panel";
   $("#panel").innerHTML=`
