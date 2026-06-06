@@ -161,6 +161,7 @@
   .panel .kv{display:flex;justify-content:space-between;gap:10px;font-size:12px;padding:6px 0;border-top:1px solid var(--line)}
   .panel .kv span:first-child{color:var(--muted)}
   .panel .kv .mono{font-family:ui-monospace,Menlo,monospace;color:var(--text);font-size:11px;overflow:hidden;text-overflow:ellipsis;max-width:170px;white-space:nowrap}
+  .panel .phelp{font-size:11px;color:var(--faint);padding:8px 0 2px;line-height:1.45}
   .panel .pactions{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
   .panel .pactions button{flex:1;min-width:90px;background:var(--surface2);border:1px solid var(--line);color:var(--text);border-radius:999px;padding:9px;cursor:pointer;font-weight:600}
   .panel .pactions button.primary{background:var(--green);color:#000;border:none}
@@ -308,7 +309,14 @@ const ATTN=[
 // ---- helpers ---------------------------------------------------------------
 const $=s=>document.querySelector(s);
 const stClass={downloaded:"down",pending:"pend",failed:"fail",removed:"rem"};
-const stLabel={downloaded:"✓ downloaded",pending:"pending",failed:"⚠ failed",removed:"removed"};
+const stLabel={downloaded:"✓ Downloaded",pending:"Not downloaded",failed:"⚠ Download failed",removed:"Removed from Spotify"};
+const FLABEL={pending:"Not downloaded",failed:"Failed",removed:"Removed"};
+const stHelp={
+  downloaded:"On your computer and ready to play.",
+  pending:"In your Spotify playlist, but not downloaded to your computer yet.",
+  failed:"openbeat couldn't download a version. Retry, or import a file you got yourself.",
+  removed:"No longer in your Spotify playlist. The local file is kept until you prune it.",
+};
 
 function showView(v){
   document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active",t.dataset.view===v));
@@ -346,7 +354,7 @@ function renderDashboard(){
       </div>`).join("");
     list.querySelectorAll("button").forEach(b=>b.onclick=()=>{ setFilter(ATTN[b.dataset.i].f); showView("tracks"); });
   }
-  $("#summary").innerHTML=`<b>${COUNTS.downloadedTotal}</b> downloaded · <b>${COUNTS.pendingTotal}</b> pending`;
+  $("#summary").innerHTML=`<b>${COUNTS.downloadedTotal}</b> downloaded · <b>${COUNTS.pendingTotal}</b> not downloaded`;
 }
 
 // simulated sync
@@ -384,12 +392,12 @@ const SORTERS={
 };
 function renderFilters(){
   const counts={pending:COUNTS.pending,failed:COUNTS.failed,removed:COUNTS.removed};
-  let html='<div class="chip" data-f="all">All</div>';
+  let html='<div class="chip" data-f="all" title="All songs in your library">All</div>';
   ["pending","failed","removed"].forEach(s=>{
-    const n=counts[s], cap=s[0].toUpperCase()+s.slice(1);
+    const n=counts[s], cap=FLABEL[s];
     html += n>0
-      ? `<div class="chip ${STC[s]}" data-f="${s}">${cap} ${n}</div>`
-      : `<div class="chip zero" data-f="${s}" title="No ${s} songs right now">${cap}</div>`;
+      ? `<div class="chip ${STC[s]}" data-f="${s}" title="${stHelp[s]}">${cap} ${n}</div>`
+      : `<div class="chip zero" data-f="${s}" title="None right now — ${stHelp[s]}">${cap}</div>`;
   });
   const box=$("#filters"); box.innerHTML=html;
   box.querySelectorAll(".chip").forEach(c=>{
@@ -412,7 +420,7 @@ function renderTracks(){
         <div class="t">${t.t}</div>
         <div class="s">${t.a} · ${t.tags}${t.bpm?" · "+t.bpm+" bpm":""}</div>
       </div>
-      <div class="st ${stClass[t.st]}">${stLabel[t.st]}</div>
+      <div class="st ${stClass[t.st]}" title="${stHelp[t.st]}">${stLabel[t.st]}</div>
       <div class="dur">${t.dur}</div>
     </div>`).join("") || '<div class="allgood">No songs match your filters.</div>';
   list.querySelectorAll(".trow").forEach(r=>r.onclick=()=>selectTrack(+r.dataset.idx));
@@ -433,6 +441,7 @@ function selectTrack(idx){
     <h3>${t.t}</h3>
     <div class="by">${t.a}</div>
     <div class="kv"><span>Status</span><span>${stLabel[t.st]}</span></div>
+    <div class="phelp">${stHelp[t.st]}</div>
     <div class="kv"><span>Album</span><span>${t.al} · ${t.yr}</span></div>
     <div class="kv"><span>Tags</span><span>${t.tags}</span></div>
     <div class="kv"><span>BPM</span><span>${t.bpm||"—"}</span></div>

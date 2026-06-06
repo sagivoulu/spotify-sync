@@ -64,6 +64,9 @@ cd prd/ui-research/04-prototype && python3 -m http.server 8765
   filtering (Phase 2 stub).
 - Made **sort** an interactive icon button (styled like the filters button) with a working
   sort menu (date added / title / artist / BPM / status).
+- Clarified **status terminology** — statuses describe download/sync state, so labels are now
+  plain-language (Downloaded / Not downloaded / Download failed / Removed from Spotify) with
+  tooltips and a one-line explanation in the side panel.
 
 ### Verified
 

@@ -69,6 +69,22 @@ Pattern borrowed from Lexicon's "scans → actionable problem lists."
     filtering — combine **tags** (e.g. sexy, dark) + **energy** (e.g. low) with free-text
     search, all here in the Tracks page.
 
+### Status vocabulary (download/sync state)
+
+Statuses describe the relationship between a Spotify song (what you *want*) and your local
+library (what you *have*) — i.e. download/sync state. This was unclear with terse one-word
+labels, so user-facing labels are plain-language (not DB jargon), each with a tooltip and a
+one-line explanation in the side panel:
+
+| DB status | User label | Means |
+|---|---|---|
+| `downloaded` | ✓ Downloaded | On your computer, ready to play. |
+| `pending` | Not downloaded | In your Spotify playlist, not downloaded yet. |
+| `failed` | ⚠ Download failed | Couldn't download; retry or import a file. |
+| `removed_from_source` | Removed from Spotify | No longer in the playlist; file kept until prune. |
+
+(The "Spotify" wording is source-specific for v1; a multi-source future generalizes to "source".)
+
 ### Activity (action log) — light
 - A clearly-labeled **technical** log: sync runs, tracks removed from source, manual imports
   detected, etc. Not a hero view.
