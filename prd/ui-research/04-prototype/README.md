@@ -28,8 +28,13 @@ cd prd/ui-research/04-prototype && python3 -m http.server 8765
 - **Home** (landing): a *positive*, uncluttered overview — readiness hero ("✓ 814 songs ready
   to play") + Run sync · **Recently added** (real song rows) · demoted **Needs attention** card
   · "Soon" **placeholders** for Recent sets (Phase 3) and Library stats (Phase 2). App updates
-  live in a small top-bar **"What's new"** button (dot when unread); the action log is in its
-  own **Activity** tab. Reframed from the old problems-first "Dashboard".
+  live behind a far-corner **notifications bell** (dot when unread; updates grouped by version
+  with relative time); the action log is in its own **Activity** tab. Reframed from the old
+  problems-first "Dashboard".
+- **Tabs:** Home · Tracks · **Sets** (Phase 3 preview/mockup) · Activity. The old **Statistics**
+  tab was removed (counts already live in Home + Tracks).
+- **Sets** (preview): a mockup of the future sets feature — past sets (venue · date · duration ·
+  tracks) with Publish-to-Spotify / Export actions; marked "Soon".
 - **Online/offline:** offline shows a calm banner and disables internet-only actions (Run sync,
   Download, Retry, bulk Download all / Retry all) while local actions stay enabled (Prune,
   import a local file). The library stays fully browsable/playable offline.
@@ -111,6 +116,15 @@ cd prd/ui-research/04-prototype && python3 -m http.server 8765
   (dot when unread; opening clears it), and **removed the Recent activity card** from Home (it
   has its own Activity tab). Home is now hero + Recently added + Needs attention + two "Soon"
   placeholders.
+
+## Review changes — round 6 (Sagiv)
+
+- **Notifications bell** replaces the ✦ "What's new" button: moved to the far top-right corner,
+  minimal/low-attention, **bell** icon (the sparkle read as AI). Reframed as updates +
+  notifications in general; update notes **grouped by version** with relative time.
+- **Removed the Statistics tab** — its info already exists in Home + Tracks.
+- **Added a Sets tab (Phase 3 preview)** — a mockup of past sets with Publish-to-Spotify /
+  Export actions, so the future direction is concrete.
 
 ### Verified
 

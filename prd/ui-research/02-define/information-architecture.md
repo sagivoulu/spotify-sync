@@ -25,11 +25,10 @@ If the UI needs data the `--json` doesn't expose, that's a finding to feed back 
 │  TABS (tab-per-category):                                                      │
 │   ● Home        positive overview + Run sync    (PHASE 1 — landing view)       │
 │   ● Tracks      all songs, art, preview, filters(PHASE 1 — anchor view)        │
+│   ◐ Sets        past sets → publish to Spotify   (Phase 3 — preview/mockup)     │
 │   ● Activity    action log (syncs, removals…)   (PHASE 1 — light)              │
-│   ● Statistics  counts / overview               (PHASE 1 — light)              │
 │   ○ Tagging     tag assist                       (Phase 2)                     │
 │   ○ Coverage    event-readiness smartlists       (Phase 2)                     │
-│   ○ Sets        set-building + Spotify export     (Phase 3)                     │
 └───────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -115,8 +114,15 @@ Removed; none for All.
 - **Note:** a true *play/set History* (the sets the DJ actually played) is a different,
   **Phase 3** concept — don't conflate. The "History" name is reserved for that.
 
-### Statistics — light
-- Library counts by status; room to grow into coverage stats in Phase 2.
+### Sets (Phase 3) — preview tab
+A visible tab with a **mockup** of the future sets feature (tab tagged "Soon"): a record of
+past sets (venue · date · duration · track count), each with **Publish to Spotify** / **Export**
+actions, and an "open in Spotify" state for already-published sets. Not built in Phase 1 —
+shown so the direction is concrete and testable.
+
+> **The old Statistics tab was removed.** Its counts already live in the Home readiness/health
+> badge and the Tracks list — a separate tab was redundant. Meaningful stats (popular tags,
+> most-played songs) return as the Home **Library stats** card in Phase 2, not as a tab.
 
 ## Cross-cutting elements
 
@@ -133,9 +139,10 @@ Removed; none for All.
   - a calm banner reassures rather than errors: "You're offline — your library is fully
     playable. Syncing and downloads resume automatically when you reconnect." This *is* the
     "confidence" theme applied to connectivity: offline should feel safe, not broken.
-- **"What's new" button** (top-right, ✦ icon): app update notes live behind a small button that
-  highlights with a dot when there's a new version / unread update; opening it clears the dot.
-  Kept off the main Home to avoid overload.
+- **Notifications** (far top-right corner, **bell** icon — minimal, low-attention): one place for
+  updates and notifications in general. Shows a dot when something is unread; opening it clears
+  the dot. Update notes are **grouped by version** with a relative time (e.g. "v0.3 · 2h ago").
+  (A standard bell, deliberately *not* a sparkle/AI-style icon.)
 - **Search is NOT global** — it lives in the Tracks page (see below), since searching is a
   Tracks operation.
 - Visual direction (Prototype phase): **Spotify-like** — dark, clean, art-forward.
