@@ -58,6 +58,20 @@
   .hdot.warn{background:var(--amber)}
   .health b{color:var(--text)}
   .hwarn{color:var(--amber);font-weight:700}
+  .netpill{display:flex;align-items:center;gap:6px;font-size:12px;border-radius:999px;padding:6px 12px;border:1px solid var(--line);cursor:pointer;background:var(--surface2)}
+  .netpill .nd{width:8px;height:8px;border-radius:50%}
+  .netpill.on{color:var(--green)} .netpill.on .nd{background:var(--green)}
+  .netpill.off{color:var(--amber)} .netpill.off .nd{background:var(--amber)}
+  .offline-banner{display:none;background:rgba(240,162,2,.12);border:1px solid rgba(240,162,2,.4);color:var(--amber);border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13px}
+  .offline-banner.on{display:block}
+  .nuwrap{position:relative}
+  .nbtn{position:relative;display:grid;place-items:center;width:34px;height:32px;border-radius:8px;background:var(--surface2);border:1px solid var(--line);color:var(--muted);cursor:pointer;font-size:14px}
+  .nbtn:hover{color:var(--text);background:var(--hover)}
+  .nbtn.has{color:var(--green)}
+  .nu-dot{position:absolute;top:4px;right:5px;width:7px;height:7px;border-radius:50%;background:var(--green);display:none}
+  .nbtn.has .nu-dot{display:block}
+  .nupop{position:absolute;top:46px;right:0;z-index:30;width:270px;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:none;box-shadow:0 10px 28px rgba(0,0,0,.45)}
+  .nupop.on{display:block}
 
   /* tabs */
   .tabs{display:flex;gap:4px;padding:8px 16px;background:#0d0d0d;border-bottom:1px solid var(--line);flex:0 0 auto}
@@ -83,6 +97,7 @@
   .verdict .actions{margin-left:auto;text-align:right}
   .btn{background:var(--green);color:#000;border:none;border-radius:999px;padding:12px 26px;font-weight:700;font-size:14px;cursor:pointer}
   .btn:hover{filter:brightness(1.08)}
+  .btn:disabled{opacity:.5;cursor:default;filter:none}
   .btn.secondary{background:var(--surface2);color:var(--text);border:1px solid var(--line)}
   .lastrun{display:block;color:var(--faint);font-size:12px;margin-top:8px}
 
@@ -100,6 +115,29 @@
   .allgood{color:var(--muted);background:var(--surface);border:1px dashed var(--line);border-radius:var(--radius);padding:18px;text-align:center}
   .summary{margin-top:18px;color:var(--muted);font-size:13px}
   .summary b{color:var(--text)}
+  .homegrid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 18px 18px}
+  .card .section{margin-top:0}
+  .homegrid .attn{background:var(--surface2)}
+  .countpill{display:inline-block;background:rgba(240,162,2,.18);color:var(--amber);font-size:11px;font-weight:700;padding:1px 8px;border-radius:999px;margin-left:6px;vertical-align:middle}
+  .subwarn{color:var(--amber);font-weight:600}
+  .newline{color:var(--muted);font-size:13px;margin-bottom:12px}
+  .newline b{color:var(--text)}
+  .newchips{display:flex;flex-wrap:wrap;gap:6px}
+  .newchip{background:var(--surface2);border:1px solid var(--line);border-radius:999px;padding:5px 10px;font-size:12px;color:var(--text)}
+  .aitem{display:flex;gap:12px;align-items:center;padding:8px 0;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+  .aitem:first-child{border-top:0}
+  .aitem .atxt{flex:1;color:var(--text)}
+  .aitem .awhen{color:var(--faint);font-size:12px}
+  @media(max-width:820px){.homegrid{grid-template-columns:1fr}}
+  .soon{display:inline-block;background:var(--surface2);border:1px solid var(--line);color:var(--faint);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 7px;border-radius:999px;margin-left:8px;vertical-align:middle}
+  .ph{color:var(--faint);font-size:12.5px;margin-bottom:10px}
+  .phrow{display:flex;justify-content:space-between;padding:7px 0;border-top:1px solid var(--line);color:var(--faint);font-size:13px}
+  .phchips{display:flex;flex-wrap:wrap;gap:6px}
+  .newchip.dim{opacity:.5}
+  .upd{font-size:12.5px;color:var(--muted);padding:7px 0;border-top:1px solid var(--line)}
+  .upd:first-of-type{border-top:0}
+  .upd b{color:var(--text)}
 
   /* sync progress */
   .progress{display:none;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;margin-top:16px}
@@ -173,6 +211,7 @@
   .panel .pactions button{flex:1;min-width:90px;background:var(--surface2);border:1px solid var(--line);color:var(--text);border-radius:999px;padding:9px;cursor:pointer;font-weight:600}
   .panel .pactions button.primary{background:var(--green);color:#000;border:none}
   .panel .pactions button.danger{background:var(--red);color:#fff;border:none}
+  .panel .pactions button:disabled{opacity:.5;cursor:default;filter:none}
   .panel .pactions button:hover{filter:brightness(1.1)}
 
   /* history / stats */
@@ -200,25 +239,35 @@
       <span class="pill" id="playlistPill" title="The Spotify playlist this library syncs from — opens in Spotify">
         <span class="pill-cap">PLAYLIST</span>WCS Sagbot ↗
       </span>
+      <div class="nuwrap">
+        <div class="nbtn has" id="whatsNewBtn" title="What's new">✦<span class="nu-dot"></span></div>
+        <div class="nupop" id="whatsNewPop">
+          <div class="menulabel">What's new</div>
+          <div class="upd"><b>Home overview</b> — see what's ready at a glance.</div>
+          <div class="upd"><b>Manual import dedup</b> — grab a file yourself and openbeat recognizes it.</div>
+        </div>
+      </div>
+      <div class="netpill on" id="netPill" title="Network status — click to toggle (demo)"></div>
       <div class="health" id="healthBadge" title="Library health — click for details"></div>
     </div>
   </div>
 
   <div class="tabs" id="tabs">
-    <div class="tab active" data-view="dashboard">Dashboard</div>
+    <div class="tab active" data-view="home">Home</div>
     <div class="tab" data-view="tracks">Tracks</div>
     <div class="tab" data-view="activity">Activity</div>
     <div class="tab" data-view="stats">Statistics</div>
   </div>
 
   <div class="main">
-    <!-- DASHBOARD -->
-    <div class="view active" id="dashboard">
-      <div class="verdict attn" id="verdict">
-        <div class="badge" id="verdictBadge">⚠</div>
+    <!-- HOME -->
+    <div class="view active" id="home">
+      <div class="offline-banner" id="offlineBanner">📡 You're offline — your library is fully playable. Syncing and downloads resume automatically when you reconnect.</div>
+      <div class="verdict ready" id="verdict">
+        <div class="badge" id="verdictBadge">✓</div>
         <div>
-          <h1 id="verdictTitle">Library needs attention</h1>
-          <p id="verdictSub">814 of 842 downloaded · 3 need attention</p>
+          <h1 id="verdictTitle">814 songs ready to play</h1>
+          <p id="verdictSub">Library healthy · synced 2h ago</p>
         </div>
         <div class="actions">
           <button class="btn" id="runSync">▶ Run sync</button>
@@ -232,10 +281,27 @@
         <div class="log" id="progLog"></div>
       </div>
 
-      <h2 class="section">Needs your attention</h2>
-      <div class="attn-list" id="attnList"></div>
-
-      <div class="summary" id="summary"></div>
+      <div class="homegrid">
+        <div class="card">
+          <h2 class="section">Recently added</h2>
+          <div id="recentAdded"></div>
+        </div>
+        <div class="card">
+          <h2 class="section">Needs attention <span class="countpill" id="attnPill"></span></h2>
+          <div class="attn-list" id="attnList"></div>
+        </div>
+        <div class="card">
+          <h2 class="section">Recent sets <span class="soon">Soon</span></h2>
+          <div class="ph">Sets you played, saved from VirtualDJ — ready to publish to Spotify.</div>
+          <div class="phrow"><span>Media West</span><span>May 30</span></div>
+          <div class="phrow"><span>WesTLV</span><span>Apr 18</span></div>
+        </div>
+        <div class="card">
+          <h2 class="section">Library stats <span class="soon">Soon</span></h2>
+          <div class="ph">Popular tags &amp; most-played songs.</div>
+          <div class="phchips"><span class="newchip dim">funky</span><span class="newchip dim">latin</span><span class="newchip dim">sexy</span><span class="newchip dim">high energy</span></div>
+        </div>
+      </div>
     </div>
 
     <!-- TRACKS -->
@@ -313,9 +379,17 @@ const ATTN=[
   {k:"fail",ico:"⚠",lbl:COUNTS.failed+" downloads failed",sub:"couldn't find or fetch a version",btn:"Review",f:"failed"},
   {k:"rem",ico:"⊘",lbl:COUNTS.removed+" removed from Spotify",sub:"files kept on disk",btn:"Prune",f:"removed"},
 ];
+const ACT=[
+  {when:"2h ago",type:"sync",text:"Sync run — +10 new · <b>8</b> downloaded · 2 failed · 1 removed"},
+  {when:"2h ago",type:"remove",text:'Removed from source — “Bésame Mucho” (file kept on disk)'},
+  {when:"1d ago",type:"import",text:'Manual import detected — “Adele - Make You Feel My Love.mp3” bound to a pending track'},
+  {when:"6 days ago",type:"sync",text:"Sync run — +3 new · <b>3</b> downloaded"},
+  {when:"3 weeks ago",type:"sync",text:"Sync run — +47 new · <b>42</b> downloaded · 5 failed"},
+];
 
 // ---- helpers ---------------------------------------------------------------
 const $=s=>document.querySelector(s);
+let online=true;
 const stClass={downloaded:"down",pending:"pend",failed:"fail",removed:"rem"};
 const stLabel={downloaded:"✓ Downloaded",pending:"Not downloaded",failed:"⚠ Download failed",removed:"Removed from Spotify"};
 const FLABEL={pending:"Not downloaded",failed:"Download failed",removed:"Removed from Spotify"};
@@ -342,18 +416,40 @@ function renderHealth(){
     (ok?``:`<span class="hwarn">⚠ ${attn} to review</span>`);
 }
 
-// ---- dashboard -------------------------------------------------------------
-function renderDashboard(){
-  const attnCount=COUNTS.failed+COUNTS.removed;
-  const v=$("#verdict"), ready=attnCount===0;
-  v.className="verdict "+(ready?"ready":"attn");
-  $("#verdictBadge").textContent=ready?"✓":"⚠";
-  $("#verdictTitle").textContent=ready?"Library is event-ready":"Library needs attention";
-  $("#verdictSub").textContent=`${COUNTS.downloadedTotal} of ${COUNTS.total} downloaded · ${ready?"all good":attnCount+" need attention"}`;
+// ---- network awareness (online/offline) ------------------------------------
+function renderNet(){
+  const p=$("#netPill");
+  p.className="netpill "+(online?"on":"off");
+  p.innerHTML=`<span class="nd"></span>${online?"Online":"Offline"}`;
+  $("#offlineBanner").classList.toggle("on",!online);
+  const rs=$("#runSync"); rs.disabled=!online; rs.title=online?"":"Needs internet — unavailable offline";
+  renderExplainer();            // bulk CTAs reflect offline
+  if(selectedIdx!=null) selectTrack(selectedIdx);  // refresh open panel's actions
+}
 
-  const list=$("#attnList");
-  if(ready){ list.innerHTML='<div class="allgood">✓ Nothing needs attention — you\'re ready to play.</div>'; }
+// ---- home ------------------------------------------------------------------
+function renderHome(){
+  const attnCount=COUNTS.failed+COUNTS.removed;
+  // hero stays positive
+  $("#verdict").className="verdict ready";
+  $("#verdictBadge").textContent="✓";
+  $("#verdictTitle").textContent=`${COUNTS.downloadedTotal} songs ready to play`;
+  $("#verdictSub").innerHTML = attnCount===0
+    ? `Library healthy · ${syncedLabel}`
+    : `Library healthy · ${syncedLabel} · <span class="subwarn">${attnCount} need attention ↓</span>`;
+
+  // recently added songs — same row representation as the Tracks page
+  const recent = TRACKS.map((t,idx)=>({t,idx})).filter(o=>o.t.st==="downloaded").slice(0,4);
+  $("#recentAdded").innerHTML =
+    `<div class="newline"><b>+10</b> added in your last sync (${syncedLabel})</div>`+
+    recent.map(o=>songRowHTML(o.t,o.idx)).join("");
+  bindRows($("#recentAdded"), idx=>{ showView("tracks"); selectTrack(idx); });
+
+  // needs attention (demoted; quiet when none) — recent activity lives in its own Activity tab
+  const pill=$("#attnPill"), list=$("#attnList");
+  if(attnCount===0){ pill.style.display="none"; list.innerHTML='<div class="allgood">✓ Nothing needs attention — you\'re ready to play.</div>'; }
   else{
+    pill.style.display="inline-block"; pill.textContent=attnCount;
     list.innerHTML=ATTN.map((a,i)=>`
       <div class="attn">
         <div class="ico ${a.k}">${a.ico}</div>
@@ -362,7 +458,6 @@ function renderDashboard(){
       </div>`).join("");
     list.querySelectorAll("button").forEach(b=>b.onclick=()=>{ setFilter(ATTN[b.dataset.i].f); showView("tracks"); });
   }
-  $("#summary").innerHTML=`<b>${COUNTS.downloadedTotal}</b> downloaded · <b>${COUNTS.pendingTotal}</b> not downloaded`;
 }
 
 // simulated sync
@@ -383,13 +478,13 @@ $("#runSync").onclick=()=>{
     bar.style.width=f+"%"; pct.textContent=f+"%";
     log.textContent=steps.slice(0,i+1).join("\n");
     if(i++<steps.length-1) setTimeout(tick,500);
-    else { syncedLabel="synced just now"; renderHealth(); $("#lastRun").textContent="last run: +10 new · 2 failed"; $("#runSync").disabled=false; }
+    else { syncedLabel="synced just now"; renderHealth(); renderHome(); $("#lastRun").textContent="last run: +10 new · 2 failed"; $("#runSync").disabled=false; }
   };
   tick();
 };
 
 // ---- tracks ----------------------------------------------------------------
-let filter="all", query="", sortKey="added", sortDir="asc";
+let filter="all", query="", sortKey="added", sortDir="asc", selectedIdx=null;
 const STC={pending:"c-pending",failed:"c-failed",removed:"c-removed"};
 const stColor={pending:"#5b6b8c",failed:"var(--red)",removed:"var(--amber)"};
 const BASE={
@@ -420,11 +515,29 @@ function renderExplainer(){
   const ex=$("#statusExplainer");
   if(filter==="all"){ ex.className="explainer"; ex.innerHTML=""; ex.style.borderLeftColor=""; return; }
   const n=COUNTS[filter]||0;
+  const dis=!online&&(filter==="pending"||filter==="failed");   // bulk download/retry need internet
   ex.className="explainer on";
   ex.style.borderLeftColor=stColor[filter]||"var(--line)";
   ex.innerHTML=`<div class="ex-text"><b>${FLABEL[filter]}:</b> ${stHelp[filter]}</div>`+
-    `<button class="ex-cta${filter==="removed"?" danger":""}" id="bulkCta">${BULK[filter]} (${n})</button>`;
+    `<button class="ex-cta${filter==="removed"?" danger":""}" id="bulkCta"${dis?" disabled title='Needs internet'":""}>${BULK[filter]} (${n})</button>`;
   $("#bulkCta").onclick=()=>{ const b=$("#bulkCta"), o=b.textContent; b.textContent="Started…"; b.disabled=true; setTimeout(()=>{b.textContent=o;b.disabled=false;},1200); };
+}
+
+// shared song-row markup — used by Tracks list AND Home "Recently added"
+function songRowHTML(t,idx){
+  return `<div class="trow" data-idx="${idx}">
+      <div class="art" style="background:${art(idx)}">${t.t[0]}<span class="pov">▶</span></div>
+      <div class="meta">
+        <div class="t">${t.t}</div>
+        <div class="s">${t.a} · ${t.tags}${t.bpm?" · "+t.bpm+" bpm":""}</div>
+      </div>
+      <div class="st ${stClass[t.st]}" title="${stHelp[t.st]}">${stLabel[t.st]}</div>
+      <div class="dur">${t.dur}</div>
+    </div>`;
+}
+function bindRows(container,onRowClick){
+  container.querySelectorAll(".trow").forEach(r=>r.onclick=()=>onRowClick(+r.dataset.idx));
+  container.querySelectorAll(".pov").forEach(p=>p.onclick=e=>{e.stopPropagation(); p.textContent=p.textContent==="▶"?"⏸":"▶";});
 }
 
 function renderTracks(){
@@ -433,27 +546,19 @@ function renderTracks(){
     .filter(o=>filter==="all"||o.t.st===filter)
     .filter(o=>!query || (o.t.t+" "+o.t.a).toLowerCase().includes(query));
   rows.sort((a,b)=>(sortDir==="asc"?1:-1)*BASE[sortKey](a,b));
-  list.innerHTML=rows.map(({t,idx})=>`
-    <div class="trow" data-idx="${idx}">
-      <div class="art" style="background:${art(idx)}">${t.t[0]}<span class="pov">▶</span></div>
-      <div class="meta">
-        <div class="t">${t.t}</div>
-        <div class="s">${t.a} · ${t.tags}${t.bpm?" · "+t.bpm+" bpm":""}</div>
-      </div>
-      <div class="st ${stClass[t.st]}" title="${stHelp[t.st]}">${stLabel[t.st]}</div>
-      <div class="dur">${t.dur}</div>
-    </div>`).join("") || '<div class="allgood">No songs match your filters.</div>';
-  list.querySelectorAll(".trow").forEach(r=>r.onclick=()=>selectTrack(+r.dataset.idx));
-  list.querySelectorAll(".pov").forEach(p=>p.onclick=e=>{e.stopPropagation(); p.textContent=p.textContent==="▶"?"⏸":"▶";});
+  list.innerHTML=rows.map(({t,idx})=>songRowHTML(t,idx)).join("") || '<div class="allgood">No songs match your filters.</div>';
+  bindRows(list, selectTrack);
 }
 
 function selectTrack(idx){
+  selectedIdx=idx;
   const t=TRACKS[idx];
   document.querySelectorAll(".trow").forEach(r=>r.classList.toggle("sel",+r.dataset.idx===idx));
+  const off=!online&&(t.st==="pending"||t.st==="failed");   // these fixes need internet
   const actions = t.st==="pending"
-    ? `<button class="primary">⤓ Download now</button><button>⤓ Import file</button>`
+    ? `<button class="primary"${off?" disabled title='Needs internet'":""}>⤓ Download now</button><button>⤓ Import file</button>`
     : t.st==="failed"
-    ? `<button class="primary">↻ Retry download</button><button>⤓ Import file</button>`
+    ? `<button class="primary"${off?" disabled title='Needs internet'":""}>↻ Retry download</button><button>⤓ Import file</button>`
     : t.st==="removed"
     ? `<button class="primary danger">🗑 Prune (delete file)</button><button>Keep file</button>`
     : `<button class="primary">▶ Preview</button><button>⤓ Replace</button>`;
@@ -475,14 +580,7 @@ function selectTrack(idx){
 
 // ---- activity (action log) / stats -----------------------------------------
 function renderActivity(){
-  const A=[
-    {when:"2h ago",type:"sync",text:"Sync run — +10 new · <b>8</b> downloaded · 2 failed · 1 removed"},
-    {when:"2h ago",type:"remove",text:'Removed from source — “Bésame Mucho” (file kept on disk)'},
-    {when:"1d ago",type:"import",text:'Manual import detected — “Adele - Make You Feel My Love.mp3” bound to a pending track'},
-    {when:"6 days ago",type:"sync",text:"Sync run — +3 new · <b>3</b> downloaded"},
-    {when:"3 weeks ago",type:"sync",text:"Sync run — +47 new · <b>42</b> downloaded · 5 failed"},
-  ];
-  $("#activityList").innerHTML=A.map(a=>`<div class="hrow"><div class="when">${a.when}</div><span class="atype ${a.type}">${a.type}</span><div class="nums">${a.text}</div></div>`).join("");
+  $("#activityList").innerHTML=ACT.map(a=>`<div class="hrow"><div class="when">${a.when}</div><span class="atype ${a.type}">${a.type}</span><div class="nums">${a.text}</div></div>`).join("");
 }
 function renderStats(){
   const s=[["842","Total"],["814","Downloaded"],["12","Not downloaded"],["3","Download failed"],["8","Removed"]];
@@ -490,7 +588,7 @@ function renderStats(){
 }
 
 // init
-$("#healthBadge").onclick=()=>showView("dashboard");
+$("#healthBadge").onclick=()=>showView("home");
 $("#search").oninput=e=>{ query=e.target.value.trim().toLowerCase(); renderTracks(); };
 $("#filterBtn").onclick=()=>{ $("#filterBtn").classList.toggle("on"); $("#futureNote").classList.toggle("on"); };
 function applySort(){
@@ -508,8 +606,10 @@ document.querySelectorAll("#sortMenu .menuitem").forEach(mi=>mi.onclick=e=>{
   else { sortKey=mi.dataset.s; sortDir="asc"; }
   applySort();   // keep menu open so the direction arrow is visible / re-clickable
 });
-document.addEventListener("click",()=>{ $("#sortMenu").classList.remove("on"); $("#sortBtn").classList.remove("on"); });
-renderHealth(); renderDashboard(); renderFilters(); renderExplainer(); applySort(); renderActivity(); renderStats();
+$("#whatsNewBtn").onclick=e=>{ e.stopPropagation(); $("#whatsNewBtn").classList.remove("has"); $("#whatsNewPop").classList.toggle("on"); };
+document.addEventListener("click",()=>{ $("#sortMenu").classList.remove("on"); $("#sortBtn").classList.remove("on"); $("#whatsNewPop").classList.remove("on"); });
+$("#netPill").onclick=()=>{ online=!online; renderNet(); };
+renderHealth(); renderHome(); renderFilters(); renderExplainer(); applySort(); renderActivity(); renderStats(); renderNet();
 </script>
 </body>
 </html>

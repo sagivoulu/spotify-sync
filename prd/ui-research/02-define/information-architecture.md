@@ -12,7 +12,7 @@ contract:
 
 | Data | Surfaced as |
 |---|---|
-| `tracks` + `status` enum | **Tracks** list + Dashboard health groupings |
+| `tracks` + `status` enum | **Tracks** list + Home health groupings |
 | `sync_runs` + per-run logs | **History** |
 | `libraries` | library context (switcher = future) + **Statistics** |
 
@@ -21,9 +21,9 @@ If the UI needs data the `--json` doesn't expose, that's a finding to feed back 
 ## Top-level structure
 
 ```
-┌─ open·beat            [PLAYLIST: WCS Sagbot ↗]   ● 814 downloaded · 2h · ⚠ N review ─┐
+┌─ open·beat   [PLAYLIST: WCS Sagbot ↗]  ● Online   ● 814 downloaded · 2h · ⚠ N ─┐
 │  TABS (tab-per-category):                                                      │
-│   ● Dashboard   health at a glance + Run sync   (PHASE 1 — landing view)       │
+│   ● Home        positive overview + Run sync    (PHASE 1 — landing view)       │
 │   ● Tracks      all songs, art, preview, filters(PHASE 1 — anchor view)        │
 │   ● Activity    action log (syncs, removals…)   (PHASE 1 — light)              │
 │   ● Statistics  counts / overview               (PHASE 1 — light)              │
@@ -33,23 +33,34 @@ If the UI needs data the `--json` doesn't expose, that's a finding to feed back 
 └───────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Landing view = Dashboard (CONFIRMED).** Opening the app should immediately answer
-"is my library healthy / event-ready?" — the core "confidence before it matters" insight.
-Tracks remains the primary *browse* surface, one click away.
+**Landing view = Home (CONFIRMED).** A *positive home base*, not a problems inbox: opening the
+app should reassure ("✓ 814 songs ready to play") and show what's new — with problems
+**demoted** to a card that only stands out when there's something to fix. Tracks remains the
+primary *browse* surface, one click away. (Renamed "Dashboard" → "Home": "Dashboard" implied a
+metrics grid; "Home" sets the calm-landing expectation. A problems-first landing made the
+default tone anxiety and was redundant with Tracks.)
 
 ## Phase 1 tabs in detail
 
-### Dashboard (landing) — the wedge
-Pattern borrowed from Lexicon's "scans → actionable problem lists."
-- **Sync control:** `Run sync` button; live progress while running; last-run summary
-  (e.g. "+10 new, 814 downloaded, 3 failed").
-- **Health summary cards**, each drilling into the relevant filtered list with resolve actions:
-  - Downloaded · Pending · **Failed (review)** · Removed-from-source.
-  - **No "duplicates" card:** v1 prevents duplicates at the source (manual-import dedup binds a
-    file to its track row), so there's nothing to *detect*. A Lexicon-style "find duplicates"
-    scan is a possible future feature, not Phase 1.
-  - (No "needs match-QA" card — quality/match verification is deferred to Phase 2.)
-- A top-line library status ("● healthy" / "⚠ N items need attention").
+### Home (landing) — calm overview, positive-first
+Leads with reassurance and the primary action; problems are demoted to one card.
+- **Readiness hero:** a positive headline ("✓ 814 songs ready to play · synced 2h ago") + the
+  **Run sync** primary action + last-run summary. Stays positive even when issues exist (a
+  subtle "N need attention ↓" links to the card below).
+- **Recently added** (Phase 1): newest songs, shown as the **same song rows as the Tracks page**
+  (art / title / artist / status) — a song looks identical everywhere. Click → opens it in Tracks.
+- **Needs attention** (Phase 1): demoted card; quiet "✓ nothing needs attention" when healthy,
+  otherwise the failed/removed groups with per-group **bulk fix** CTAs. (No duplicates card —
+  v1 prevents dups at the source, detection is a possible future scan. No match-QA — Phase 2.)
+- **Placeholders for what's coming** (tagged "Soon" so the roadmap is visible):
+  - **Recent sets** (Phase 3) — played sets, saved from VirtualDJ, ready to publish to Spotify.
+  - **Library stats** (Phase 2) — popular tags, most-played songs.
+- Kept deliberately **uncluttered** (Home was getting overloaded): the action log lives in its
+  own **Activity** tab (not duplicated here), and **app updates** moved off the page into a
+  small top-bar **"What's new" button** (see cross-cutting).
+
+The point: **Home is for *knowing*** (overview, what's new, future insights/coverage); **Tracks
+is for *doing***. That's what keeps Home from being a redundant copy of the Tracks data.
 
 ### Tracks — the anchor
 - Rows: **album art**, title/artist, status badge, energy + characteristics, BPM, duration.
@@ -113,7 +124,18 @@ Removed; none for All.
 - **Source playlist indicator** in the top bar — labeled (`PLAYLIST: WCS Sagbot`), opens the
   playlist in Spotify. A switcher is a multi-playlist / multi-library future concern.
 - **Library health badge** (top-right), always visible from any tab: downloaded count +
-  last-sync time + an amber "⚠ N to review" when anything needs attention; click → Dashboard.
+  last-sync time + an amber "⚠ N to review" when anything needs attention; click → Home.
+- **Online/offline awareness** (top bar indicator). Offline is a **first-class, expected state**
+  (DJs play at venues with no internet; the local library must work offline). When offline:
+  - the local library stays **fully usable** — browse, preview, view tags, (future) build sets;
+  - **internet-only actions are disabled** with a clear reason (Run sync, Download, Retry; the
+    bulk Download all / Retry all). Local actions stay enabled (Prune, import a local file);
+  - a calm banner reassures rather than errors: "You're offline — your library is fully
+    playable. Syncing and downloads resume automatically when you reconnect." This *is* the
+    "confidence" theme applied to connectivity: offline should feel safe, not broken.
+- **"What's new" button** (top-right, ✦ icon): app update notes live behind a small button that
+  highlights with a dot when there's a new version / unread update; opening it clears the dot.
+  Kept off the main Home to avoid overload.
 - **Search is NOT global** — it lives in the Tracks page (see below), since searching is a
   Tracks operation.
 - Visual direction (Prototype phase): **Spotify-like** — dark, clean, art-forward.
@@ -121,7 +143,7 @@ Removed; none for All.
 ## Resolve actions — where they live
 
 The Phase-1 resolve flows are reachable from **two entry points** (same underlying action):
-1. Dashboard health card → filtered list → resolve.
+1. Home "Needs attention" card → filtered list → resolve.
 2. Tracks tab → row → side panel → resolve.
 
 Actions (each available **per-song** in the side panel and **in bulk** from the category

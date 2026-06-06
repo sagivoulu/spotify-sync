@@ -23,11 +23,16 @@ cd prd/ui-research/04-prototype && python3 -m http.server 8765
 
 - **Brand:** the app is **openbeat** (renamed from spotify-sync; repo/CLI still spotify-sync).
 - **Top bar:** labeled **source-playlist indicator** (`PLAYLIST: WCS Sagbot ↗`, opens in
-  Spotify) + an always-visible **health badge** (downloaded count · last sync · amber
-  "⚠ N to review" when attention is needed; click → Dashboard).
-- **Dashboard** (landing): readiness verdict (ready/attention states) · Run sync with
-  simulated live progress · attention list (failed / removed) with
-  Review/Prune actions · summary line.
+  Spotify) + an **online/offline indicator** (click to toggle in the demo) + an always-visible
+  **health badge** (downloaded count · last sync · amber "⚠ N to review"; click → Home).
+- **Home** (landing): a *positive*, uncluttered overview — readiness hero ("✓ 814 songs ready
+  to play") + Run sync · **Recently added** (real song rows) · demoted **Needs attention** card
+  · "Soon" **placeholders** for Recent sets (Phase 3) and Library stats (Phase 2). App updates
+  live in a small top-bar **"What's new"** button (dot when unread); the action log is in its
+  own **Activity** tab. Reframed from the old problems-first "Dashboard".
+- **Online/offline:** offline shows a calm banner and disables internet-only actions (Run sync,
+  Download, Retry, bulk Download all / Retry all) while local actions stay enabled (Prune,
+  import a local file). The library stays fully browsable/playable offline.
 - **Tracks**: a unified **control bar** — free-text **search** (title/artist) + **adaptive**
   status filter chips (Not downloaded / Download failed / Removed from Spotify, matching the
   list badges — grayed when empty, colored with a count
@@ -40,7 +45,8 @@ cd prd/ui-research/04-prototype && python3 -m http.server 8765
   (Not downloaded → Download · Download failed → Retry · Removed → Prune; downloaded →
   Preview/Replace). The category explainer also offers a **bulk fix** (Download all / Retry
   all / Prune all).
-- **Wired click-through**: Dashboard attention row → Tracks pre-filtered → side panel.
+- **Wired click-through**: Home attention row → Tracks pre-filtered → side panel; Recently-added
+  row → Tracks with that song open.
 - **Activity** (action log): technical log of syncs / removals / manual imports, clearly
   labeled (not a hero view). **Statistics**: light stub.
 - Visual language: Spotify-like dark theme. Album art shown (placeholder color blocks in the
@@ -86,6 +92,25 @@ cd prd/ui-research/04-prototype && python3 -m http.server 8765
   feature, not something we detect today.
 - **Side panel** now scrolls internally only when its content exceeds the visible height
   (no needless scrollbar when it fits); trimmed the cover-art height to help it fit.
+
+## Review changes — round 4 (Sagiv)
+
+- **Reframed Dashboard → "Home"**: a positive, calm landing (readiness hero + Run sync +
+  Recently added + demoted Needs-attention + Recent activity) instead of a problems inbox.
+  Added "Soon" placeholders for Recent sets, Library stats, and What's new (app updates) so the
+  roadmap is visible.
+- **Recently added** uses the **same song rows as the Tracks page** (a song looks identical
+  everywhere) — not chips.
+- **Online/offline awareness**: top-bar indicator; offline shows a calm banner and disables
+  internet-only actions (Run sync / Download / Retry / bulk) while local actions stay enabled.
+  The library remains fully browsable & playable offline.
+
+## Review changes — round 5 (Sagiv)
+
+- **Reduced Home overload:** moved **app updates** to a small top-bar **"What's new" button**
+  (dot when unread; opening clears it), and **removed the Recent activity card** from Home (it
+  has its own Activity tab). Home is now hero + Recently added + Needs attention + two "Soon"
+  placeholders.
 
 ### Verified
 
