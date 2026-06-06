@@ -44,7 +44,10 @@ Pattern borrowed from Lexicon's "scans → actionable problem lists."
 - **Sync control:** `Run sync` button; live progress while running; last-run summary
   (e.g. "+10 new, 814 downloaded, 3 failed").
 - **Health summary cards**, each drilling into the relevant filtered list with resolve actions:
-  - Downloaded · Pending · **Failed (review)** · **Duplicates** · Removed-from-source.
+  - Downloaded · Pending · **Failed (review)** · Removed-from-source.
+  - **No "duplicates" card:** v1 prevents duplicates at the source (manual-import dedup binds a
+    file to its track row), so there's nothing to *detect*. A Lexicon-style "find duplicates"
+    scan is a possible future feature, not Phase 1.
   - (No "needs match-QA" card — quality/match verification is deferred to Phase 2.)
 - A top-line library status ("● healthy" / "⚠ N items need attention").
 
@@ -56,7 +59,8 @@ Pattern borrowed from Lexicon's "scans → actionable problem lists."
   **primary fix CTA matched to the status** (Not downloaded → Download · Download failed →
   Retry · Removed from Spotify → Prune), plus a secondary action (Import file / Keep file).
 - **Scroll containment:** the filter/sort bar (top) and the side panel (right) stay pinned;
-  only the track list scrolls.
+  only the track list scrolls. The side panel itself scrolls internally **only when** its
+  content exceeds the visible height (no scrollbar when it fits).
 - **Tracks control bar** — search, filter, and sort grouped together (they all describe
   "how the list is shaped"; search belongs here, not in the global top bar):
   - **Free-text search** (title / artist).

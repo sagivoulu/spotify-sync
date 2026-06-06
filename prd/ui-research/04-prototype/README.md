@@ -26,7 +26,7 @@ cd prd/ui-research/04-prototype && python3 -m http.server 8765
   Spotify) + an always-visible **health badge** (downloaded count · last sync · amber
   "⚠ N to review" when attention is needed; click → Dashboard).
 - **Dashboard** (landing): readiness verdict (ready/attention states) · Run sync with
-  simulated live progress · attention list (failed / duplicates / removed) with
+  simulated live progress · attention list (failed / removed) with
   Review/Prune actions · summary line.
 - **Tracks**: a unified **control bar** — free-text **search** (title/artist) + **adaptive**
   status filter chips (Not downloaded / Download failed / Removed from Spotify, matching the
@@ -74,6 +74,18 @@ cd prd/ui-research/04-prototype && python3 -m http.server 8765
   shows a ↑/↓ direction arrow (menu stays open).
 - **Status explainer** — a short line between the filter chips and the list explains the active
   category (Not downloaded / Failed / Removed; none for All).
+
+## Review changes — round 3 (Sagiv)
+
+- **Fix CTAs** for problem states: side-panel primary action matched to status (Download /
+  Retry / Prune) + a **bulk** fix in the category explainer (Download all / Retry all /
+  Prune all). Also fixed "Not downloaded" wrongly showing Preview/Replace.
+- Chip labels matched to the list badges (Not downloaded / Download failed / Removed from Spotify).
+- **Removed the fake "duplicates" indicator** (dashboard, health count, stats) — v1 prevents
+  duplicates at the source (manual-import dedup); a "find duplicates" scan would be a future
+  feature, not something we detect today.
+- **Side panel** now scrolls internally only when its content exceeds the visible height
+  (no needless scrollbar when it fits); trimmed the cover-art height to help it fit.
 
 ### Verified
 

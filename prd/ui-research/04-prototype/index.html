@@ -160,9 +160,9 @@
   .dur{color:var(--faint);font-size:12px;width:42px;text-align:right;flex:0 0 auto}
 
   /* side panel */
-  .panel{width:300px;flex:0 0 auto;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px}
+  .panel{width:300px;flex:0 0 auto;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;max-height:100%;overflow:auto}
   .panel.empty{color:var(--faint);text-align:center;padding:40px 18px}
-  .panel .bigart{width:100%;aspect-ratio:1;border-radius:10px;display:grid;place-items:center;font-size:48px;font-weight:800;color:#fff;margin-bottom:14px}
+  .panel .bigart{width:100%;height:150px;border-radius:10px;display:grid;place-items:center;font-size:46px;font-weight:800;color:#fff;margin-bottom:14px;flex:0 0 auto}
   .panel h3{margin:0;font-size:18px}
   .panel .by{color:var(--muted);margin:2px 0 14px}
   .panel .kv{display:flex;justify-content:space-between;gap:10px;font-size:12px;padding:6px 0;border-top:1px solid var(--line)}
@@ -307,11 +307,10 @@ const COUNTS={
   pending:TRACKS.filter(t=>t.st==="pending").length,
   failed:TRACKS.filter(t=>t.st==="failed").length,
   removed:TRACKS.filter(t=>t.st==="removed").length,
-  dupes:5, total:842, downloadedTotal:814, pendingTotal:12,
+  total:842, downloadedTotal:814, pendingTotal:12,
 };
 const ATTN=[
   {k:"fail",ico:"⚠",lbl:COUNTS.failed+" downloads failed",sub:"couldn't find or fetch a version",btn:"Review",f:"failed"},
-  {k:"dup",ico:"⧉",lbl:COUNTS.dupes+" possible duplicates",sub:"same song matched twice",btn:"Review",f:"all"},
   {k:"rem",ico:"⊘",lbl:COUNTS.removed+" removed from Spotify",sub:"files kept on disk",btn:"Prune",f:"removed"},
 ];
 
@@ -336,7 +335,7 @@ document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>showView(t.dataset.vi
 // ---- top-bar health badge --------------------------------------------------
 let syncedLabel="synced 2h ago";
 function renderHealth(){
-  const attn=COUNTS.failed+COUNTS.dupes+COUNTS.removed, ok=attn===0;
+  const attn=COUNTS.failed+COUNTS.removed, ok=attn===0;
   $("#healthBadge").innerHTML=
     `<span class="hdot ${ok?'ok':'warn'}"></span>`+
     `<span><b>${COUNTS.downloadedTotal}</b> downloaded · ${syncedLabel}</span>`+
@@ -345,7 +344,7 @@ function renderHealth(){
 
 // ---- dashboard -------------------------------------------------------------
 function renderDashboard(){
-  const attnCount=COUNTS.failed+COUNTS.dupes+COUNTS.removed;
+  const attnCount=COUNTS.failed+COUNTS.removed;
   const v=$("#verdict"), ready=attnCount===0;
   v.className="verdict "+(ready?"ready":"attn");
   $("#verdictBadge").textContent=ready?"✓":"⚠";
@@ -486,7 +485,7 @@ function renderActivity(){
   $("#activityList").innerHTML=A.map(a=>`<div class="hrow"><div class="when">${a.when}</div><span class="atype ${a.type}">${a.type}</span><div class="nums">${a.text}</div></div>`).join("");
 }
 function renderStats(){
-  const s=[["842","Total"],["814","Downloaded"],["12","Pending"],["3","Failed"],["5","Duplicates"],["8","Removed"]];
+  const s=[["842","Total"],["814","Downloaded"],["12","Not downloaded"],["3","Download failed"],["8","Removed"]];
   $("#statGrid").innerHTML=s.map(([n,l])=>`<div class="stat"><div class="n">${n}</div><div class="l">${l}</div></div>`).join("");
 }
 
