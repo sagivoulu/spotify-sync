@@ -11,27 +11,24 @@
   **NOT wired to the real core.** It exists to *see and test* the design, and to be the
   artifact for Phase 5 usability testing. It informs the real build; it does not become it.
 
-### How to open
+### Where the mockup file lives
 
-Open `index.html` directly in a browser, or serve it:
+The mockup HTML now lives at **`/docs/mockup.html`** (repo root `docs/` folder), so GitHub
+Pages can serve it and the PRD can reference a single canonical file. Open it directly in a
+browser, or serve locally:
 ```
-cd prd/ui-research/04-prototype && python3 -m http.server 8765
-# then visit http://localhost:8765/index.html
+cd docs && python3 -m http.server 8765
+# then visit http://localhost:8765/mockup.html
 ```
 
 ### Live demo (shareable link)
 
-**https://sagivoulu.github.io/spotify-sync/**
+- Landing (announcement): **https://sagivoulu.github.io/spotify-sync/**
+- Mockup directly: **https://sagivoulu.github.io/spotify-sync/mockup.html**
 
-- Served by GitHub Pages from the **`gh-pages`** branch (just this `index.html` at the root) —
-  a separate snapshot, **independent of edits on the feature branch**. The repo is public; the
-  link is unlisted (not in the top-level README, not advertised).
-- **It does NOT auto-update when you edit the mockup.** To publish changes, redeploy:
-  ```
-  ./deploy.sh        # from this folder; publishes the current index.html, live in ~1 min
-  ```
-  `deploy.sh` pushes only this `index.html` to `gh-pages` via git plumbing — it never touches
-  your working tree or current branch.
+Served by GitHub Pages from the **`/docs`** folder. The repo is public; the link is unlisted
+(not in the top-level README, not advertised). **It auto-updates when you push** the branch
+Pages is set to serve — no separate deploy step or `gh-pages` branch to maintain.
 
 ### What's implemented (matches the Ideate direction)
 
