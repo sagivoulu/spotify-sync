@@ -19,6 +19,20 @@ cd prd/ui-research/04-prototype && python3 -m http.server 8765
 # then visit http://localhost:8765/index.html
 ```
 
+### Live demo (shareable link)
+
+**https://sagivoulu.github.io/spotify-sync/**
+
+- Served by GitHub Pages from the **`gh-pages`** branch (just this `index.html` at the root) —
+  a separate snapshot, **independent of edits on the feature branch**. The repo is public; the
+  link is unlisted (not in the top-level README, not advertised).
+- **It does NOT auto-update when you edit the mockup.** To publish changes, redeploy:
+  ```
+  ./deploy.sh        # from this folder; publishes the current index.html, live in ~1 min
+  ```
+  `deploy.sh` pushes only this `index.html` to `gh-pages` via git plumbing — it never touches
+  your working tree or current branch.
+
 ### What's implemented (matches the Ideate direction)
 
 - **Brand:** the app is **openbeat** (renamed from spotify-sync; repo/CLI still spotify-sync).
