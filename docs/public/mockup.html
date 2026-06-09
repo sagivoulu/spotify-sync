@@ -224,6 +224,8 @@
   .st.fail{background:rgba(226,69,74,.15);color:var(--red)}
   .st.rem{background:rgba(240,162,2,.15);color:var(--amber)}
   .dur{color:var(--faint);font-size:12px;width:42px;text-align:right;flex:0 0 auto}
+  .star{flex:0 0 auto;background:transparent;border:none;color:var(--faint);font-size:16px;line-height:1;padding:4px;cursor:default;opacity:0}
+  .trow:hover .star{opacity:.55}
 
   /* side panel */
   .panel{width:300px;flex:0 0 auto;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;max-height:100%;overflow:auto}
@@ -240,6 +242,7 @@
   .panel .pactions button.primary{background:var(--green);color:#000;border:none}
   .panel .pactions button.danger{background:var(--red);color:#fff;border:none}
   .panel .pactions button:disabled{opacity:.5;cursor:default;filter:none}
+  .panel .addside{width:100%;margin-top:8px;background:transparent;border:1px dashed var(--line);color:var(--faint);border-radius:999px;padding:9px;font-weight:600;cursor:default}
   .panel .pactions button:hover{filter:brightness(1.1)}
 
   /* history / stats */
@@ -292,6 +295,7 @@
   <div class="tabs" id="tabs">
     <div class="tab active" data-view="home">Home</div>
     <div class="tab" data-view="tracks">Tracks</div>
+    <div class="tab" data-view="sidelist">Sidelist <span class="soon">Soon</span></div>
     <div class="tab" data-view="tagging">Tagging <span class="soon">Soon</span></div>
     <div class="tab" data-view="sets">Sets <span class="soon">Soon</span></div>
     <div class="tab" data-view="activity">Activity</div>
@@ -380,6 +384,19 @@
     </div>
 
     <!-- TAGGING (coming soon) -->
+    <div class="view" id="sidelist">
+      <div class="coming">
+        <div class="coming-ico">⭐</div>
+        <div class="coming-badge">Coming soon</div>
+        <h2>Sidelist</h2>
+        <p>Your big library is hard to scan when picking songs. The <b>sidelist</b> is a small,
+        curated shortlist you build sets from — recently-added songs plus the favorites you know
+        you want to play soon. Add a song with the <b>★</b> on any row, work mostly from this list,
+        and dip into the full library only when you need to. Top it up over time, then clear it and
+        start fresh.</p>
+      </div>
+    </div>
+
     <div class="view" id="tagging">
       <div class="coming">
         <div class="coming-ico">🏷️</div>
@@ -628,6 +645,7 @@ function songRowHTML(t,idx){
         <div class="s">${t.a} · ${t.tags}${t.bpm?" · "+t.bpm+" bpm":""}</div>
       </div>
       <div class="st ${stClass[t.st]}" title="${stHelp[t.st]}">${stLabel[t.st]}</div>
+      <button class="star" title="Add to sidelist — coming soon" disabled>☆</button>
       <div class="dur">${t.dur}</div>
     </div>`;
 }
@@ -671,7 +689,8 @@ function selectTrack(idx){
     <div class="kv"><span>Source</span><span>${t.src}</span></div>
     <div class="kv"><span>File</span><span class="mono">${t.file}</span></div>
     ${t.err?`<div class="kv"><span>Error</span><span style="color:var(--red);max-width:170px">${t.err}</span></div>`:""}
-    <div class="pactions">${actions}</div>`;
+    <div class="pactions">${actions}</div>
+    <button class="addside" title="Coming soon" disabled>☆ Add to sidelist</button>`;
 }
 
 // ---- activity (action log) / stats -----------------------------------------
