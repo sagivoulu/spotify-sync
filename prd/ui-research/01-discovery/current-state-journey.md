@@ -72,6 +72,7 @@ not big-data reconciliation. The tool is used under mild time pressure, close to
   level/time), **energy flow**, **style variety** (latin/pop/club/sexy/funky…).
 - **Tools:** VirtualDJ.
 - **Scope:** playback stays in VDJ, but **helping choose songs is explicitly in-scope.**
+- **Works mostly from a "sidelist," not the full library** — see the cross-cutting section below.
 - **Emotion:** 🙂 The fun, expressive part.
 
 ### 5. Live set 🟡 [VDJ] — live song-selection assist IN SCOPE; [BRIDGE] data leaks
@@ -98,6 +99,34 @@ not big-data reconciliation. The tool is used under mild time pressure, close to
 - **Emotion:** 😞 Deflating — good work goes unshared.
 
 ---
+
+## The "sidelist" (recurring practice — taming a large library)
+
+Source: follow-up from Sagiv, 2026-06-08.
+
+The full library (~842 and growing) is **too large to navigate when picking songs for a set**.
+To cope, Sagiv keeps a **sidelist**: a smaller, curated working subset he builds sets *from*,
+only dipping into the full library when the sidelist doesn't have what he needs.
+
+- **What goes in it:** recently-added songs, plus songs he *remembers loving* and wants to play
+  in upcoming sets. A personally-curated "front of mind" shortlist.
+- **Lifecycle:** it sticks around for a **while (~1–2 months)**, gets periodically topped up, and
+  is eventually **cleared / restarted fresh**. Not permanent, not a one-off — a rolling working set.
+- **Why it matters:** it's a manual workaround for *"my library is too big to find things in."*
+  It's effectively the user's own answer to navigation/findability — distinct from tags (which
+  slice the *whole* library) and from a played-set archive (history). The sidelist is a
+  *forward-looking staging area* for "what I'm likely to play soon."
+
+**Design implications (for Define):**
+- This is a strong candidate first-class concept: a **named, mutable working list** (curated
+  subset) that set-building draws from. Distinct from: the full library (Tracks), tag filters,
+  coverage smartlists, and the played-sets archive (Sets).
+- It overlaps conceptually with "Recently added" (already on the Home mockup) — recently-added is
+  one *input* to the sidelist, but the sidelist is broader (also old favorites) and is
+  user-curated + clearable.
+- Likely needs: add/remove a song to the sidelist from anywhere a song appears, a dedicated view,
+  and a "clear / start fresh" action. Pin the data model question: is this one list, or many?
+  (v1 leans one personal list; multiple is a natural extension.)
 
 ## The "event-readiness" audit (recurring, currently invisible)
 
@@ -144,6 +173,7 @@ trustworthy ahead of an event.
 | Tagging is tedious | `future/tagging-assistance.md` |
 | **Set-building / song selection assist** | **no PRD yet — new direction** |
 | **Event-readiness coverage audit** | **no PRD yet — new, ties health+tags+prep** |
+| **Large library hard to navigate → manual "sidelist"** | **no PRD yet — new; a curated working list as a first-class concept** |
 | **"Cut needed" note has no home** | **not planned anywhere — genuine gap** |
 
 ## Jobs To Be Done (extracted)
@@ -155,6 +185,8 @@ trustworthy ahead of an event.
 - When an event is coming, I want to know if my library *covers* what I'll need to play (mood, language, time-of-night).
 - When I tag, I want help so it's faster and I miss fewer tags.
 - When I build a set, I want help choosing songs that fit duration/crowd/BPM/energy/style.
+- When my library is too big to scan, I want a curated "sidelist" of songs I'm likely to play
+  soon (recent + remembered favorites) to build sets from, that I can top up and clear over time.
 - When a set ends, I want to publish it to Spotify *without* late-night manual cleanup.
 - When I notice a song needs a cut/fix, I want a reliable place to record it so I don't replay the bad version.
 
@@ -165,3 +197,6 @@ trustworthy ahead of an event.
   produce a candidate list?
 - Does the tool need to *read* VDJ's tags/comments (person-tags, cut notes) to be useful, and
   is that technically feasible? (Data-boundary question.)
+- **Sidelist:** is it a first-class concept in the UI, and which phase? How does it relate to
+  "Recently added," tag filters, and the played-sets archive — one curated list or many? What
+  are the add/remove/clear interactions, and where does "add to sidelist" appear?
